@@ -223,8 +223,8 @@
   /* ── Product Grid ── */
   .product-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 24px 20px;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 20px 16px;
     padding-left: 32px;
     padding-bottom: 80px;
   }
@@ -237,7 +237,7 @@
   @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } }
 
   .card-image {
-    aspect-ratio: 1 / 1;
+    aspect-ratio: 4 / 3;
     background: var(--surface-alt);
     border-radius: var(--radius);
     display: flex;
@@ -245,11 +245,11 @@
     justify-content: center;
     position: relative;
     overflow: hidden;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
     transition: opacity 0.3s;
   }
   .card-image:hover { opacity: 0.88; }
-  .card-image .icon { font-size: 48px; opacity: 0.4; }
+  .card-image .icon { font-size: 32px; opacity: 0.3; }
   .card-badge {
     position: absolute;
     top: 12px;
@@ -266,21 +266,34 @@
   .badge-ordered { background: #d1fae5; color: #065f46; }
 
   .card-info { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2px; }
-  .card-name { font-size: 14px; font-weight: 500; }
-  .card-price { font-size: 14px; font-weight: 500; text-align: right; white-space: nowrap; }
-  .card-cat { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .card-name { font-size: 13px; font-weight: 500; }
+  .card-price { font-size: 12px; font-weight: 500; text-align: right; white-space: nowrap; }
+  .card-cat { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 6px; }
 
-  .card-specs {
+  .spec-group { margin-bottom: 6px; }
+  .spec-group-label {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    display: inline-block;
+    background: var(--accent);
+    color: var(--bg);
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-bottom: 3px;
+  }
+  .spec-tags {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
-    margin-bottom: 8px;
+    gap: 3px;
+    margin-top: 2px;
   }
   .spec-tag {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--text-secondary);
     background: var(--accent-soft);
-    padding: 2px 8px;
+    padding: 2px 7px;
     border-radius: 4px;
   }
 
@@ -447,17 +460,52 @@
   .empty-state { text-align: center; padding: 80px 20px; color: var(--text-muted); grid-column: 1 / -1; }
   .empty-state .icon { font-size: 40px; margin-bottom: 8px; opacity: 0.5; }
 
+  @media (max-width: 1400px) {
+    .product-grid { grid-template-columns: repeat(4, 1fr); }
+  }
+  @media (max-width: 1100px) {
+    .product-grid { grid-template-columns: repeat(3, 1fr); }
+  }
   @media (max-width: 900px) {
     .main-layout { grid-template-columns: 1fr; }
-    .sidebar { display: none; }
-    .product-grid { padding-left: 0; grid-template-columns: repeat(2, 1fr); }
-    .page-title-section, .kpi-strip, .main-layout { padding-left: 20px; padding-right: 20px; }
-    .header { padding: 14px 20px; }
+    .sidebar {
+      position: static;
+      border-right: none;
+      border-bottom: 1px solid var(--border-light);
+      padding-right: 0;
+      padding-bottom: 16px;
+      margin-bottom: 16px;
+      max-height: none;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+      align-items: flex-start;
+    }
+    .sidebar .search-input { width: 100%; margin-bottom: 8px; }
+    .sidebar-section { margin-bottom: 0; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+    .sidebar-title { margin-bottom: 0; margin-right: 4px; font-size: 12px; }
+    .sidebar-item { padding: 4px 10px; font-size: 12px; background: var(--accent-soft); border-radius: 20px; gap: 4px; }
+    .sidebar-item.active { background: var(--accent); color: var(--bg); }
+    .sidebar-item.active .sidebar-check { display: none; }
+    .sidebar-check { display: none; }
+    .sidebar-divider { display: none; }
+    .product-grid { padding-left: 0; grid-template-columns: repeat(3, 1fr); }
+    .page-title-section, .kpi-strip, .main-layout { padding-left: 16px; padding-right: 16px; }
+    .header { padding: 14px 16px; }
+    .page-title { font-size: 28px; }
   }
-  @media (max-width: 600px) {
-    .product-grid { grid-template-columns: 1fr; }
-    .kpi-strip { flex-wrap: wrap; }
+  @media (max-width: 640px) {
+    .product-grid { grid-template-columns: repeat(2, 1fr); gap: 14px 10px; }
+    .kpi-strip { flex-wrap: wrap; gap: 0; }
+    .kpi-item { flex: 1; min-width: 50%; padding: 10px 12px; border-right: none; border-bottom: 1px solid var(--border-light); }
+    .kpi-num { font-size: 20px; }
+    .page-title-section { padding-top: 28px; padding-bottom: 20px; }
     .form-row, .form-row.triple { grid-template-columns: 1fr; }
+    .modal { padding: 20px; }
+    .card-actions { gap: 8px; }
+  }
+  @media (max-width: 400px) {
+    .product-grid { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -530,39 +578,39 @@
         <div class="form-group"><label>제품군</label>
           <select id="f_cat"><option>서랍재</option><option>언더레일</option><option>부자재</option><option>수납</option><option>경첩</option><option>옷봉/손잡이</option><option>기타</option></select>
         </div>
-        <div class="form-group"><label>세부품목</label><input id="f_sub" placeholder="특대서랍"></div>
+        <div class="form-group"><label>세부품목</label><input id="f_sub"></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>모델명</label><input id="f_model" placeholder="Pro 304 Drawer 212"></div>
-        <div class="form-group"><label>재질</label><input id="f_material" placeholder="304 스텐"></div>
+        <div class="form-group"><label>모델명</label><input id="f_model"></div>
+        <div class="form-group"><label>재질</label><input id="f_material"></div>
       </div>
     </div>
 
     <div class="form-section">
       <div class="form-section-title">규격</div>
       <div class="form-row triple">
-        <div class="form-group"><label>깊이 (mm)</label><input id="f_depth" placeholder="500,450,400"></div>
-        <div class="form-group"><label>사이드높이 (mm)</label><input id="f_side" placeholder="242"></div>
-        <div class="form-group"><label>백높이 (mm)</label><input id="f_back" placeholder="212"></div>
+        <div class="form-group"><label>깊이 (mm)</label><input id="f_depth"></div>
+        <div class="form-group"><label>사이드높이 (mm)</label><input id="f_side"></div>
+        <div class="form-group"><label>백높이 (mm)</label><input id="f_back"></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>기타 규격</label><input id="f_otherSpec" placeholder="보드두께 15t/18t"></div>
-        <div class="form-group"><label>설치타입</label><input id="f_install" placeholder="도웰타입,일반타입"></div>
+        <div class="form-group"><label>기타 규격</label><input id="f_otherSpec"></div>
+        <div class="form-group"><label>설치타입</label><input id="f_install"></div>
       </div>
     </div>
 
     <div class="form-section">
       <div class="form-section-title">외관</div>
       <div class="form-row">
-        <div class="form-group"><label>색상</label><input id="f_color" placeholder="다크그레이,스텐메탈"></div>
-        <div class="form-group"><label>이미지 URL</label><input id="f_img" placeholder="https://..."></div>
+        <div class="form-group"><label>색상</label><input id="f_color"></div>
+        <div class="form-group"><label>이미지 URL</label><input id="f_img"></div>
       </div>
     </div>
 
     <div class="form-section">
       <div class="form-section-title">공급업체</div>
       <div class="form-row triple">
-        <div class="form-group"><label>업체명</label><input id="f_supplier" placeholder="레시"></div>
+        <div class="form-group"><label>업체명</label><input id="f_supplier"></div>
         <div class="form-group"><label>위챗 ID</label><input id="f_wechat"></div>
         <div class="form-group"><label>업체확정</label><select id="f_confirmed"><option value="Y">Y</option><option value="N">N</option></select></div>
       </div>
@@ -571,9 +619,9 @@
     <div class="form-section">
       <div class="form-section-title">가격 / 물량</div>
       <div class="form-row triple">
-        <div class="form-group"><label>MOQ</label><input id="f_moq" placeholder="500pcs"></div>
-        <div class="form-group"><label>단가 (RMB)</label><input id="f_price" placeholder="29.50"></div>
-        <div class="form-group"><label>제작기간</label><input id="f_leadtime" placeholder="90일"></div>
+        <div class="form-group"><label>MOQ</label><input id="f_moq"></div>
+        <div class="form-group"><label>단가 (RMB)</label><input id="f_price"></div>
+        <div class="form-group"><label>제작기간</label><input id="f_leadtime"></div>
       </div>
     </div>
 
@@ -721,13 +769,19 @@ function render() {
     if (['샘플요청','샘플수령','품질검수'].includes(item.stage)) badgeClass = 'badge-sample';
     if (item.stage === '발주완료') badgeClass = 'badge-ordered';
 
-    const specs = [];
-    if (item.depth) item.depth.split(',').forEach(d => specs.push(d.trim()+'mm'));
-    if (item.side) specs.push('S:'+item.side+'mm');
-    if (item.back) item.back.split(',').forEach(b => specs.push('B:'+b.trim()+'mm'));
-    if (item.otherSpec) specs.push(item.otherSpec);
-    if (item.install) item.install.split(',').forEach(t => specs.push(t.trim()));
-    if (item.color) item.color.split(',').forEach(c => specs.push(c.trim()));
+    // Build spec groups
+    const specGroups = [];
+    if (item.depth) specGroups.push({ label: '깊이', tags: item.depth.split(',').map(d => d.trim()+'mm') });
+    if (item.side || item.back) {
+      const ht = [];
+      if (item.side) ht.push('Side ' + item.side + 'mm');
+      if (item.back) item.back.split(',').forEach(b => ht.push('Back ' + b.trim() + 'mm'));
+      specGroups.push({ label: '높이', tags: ht });
+    }
+    if (item.otherSpec) specGroups.push({ label: '규격', tags: [item.otherSpec] });
+    if (item.install) specGroups.push({ label: '설치', tags: item.install.split(',').map(t => t.trim()) });
+    if (item.color) specGroups.push({ label: '색상', tags: item.color.split(',').map(c => c.trim()) });
+    if (item.material) specGroups.push({ label: '재질', tags: [item.material] });
 
     const memos = [item.pmemo, item.smemo, item.note].filter(Boolean);
 
@@ -741,7 +795,10 @@ function render() {
         <span class="card-price">${item.price || ''}</span>
       </div>
       <div class="card-cat">${item.cat}${item.model ? ' · ' + item.model : ''}</div>
-      ${specs.length ? `<div class="card-specs">${specs.slice(0,6).map(s => `<span class="spec-tag">${s}</span>`).join('')}</div>` : ''}
+      ${specGroups.map(g => `<div class="spec-group">
+        <span class="spec-group-label">${g.label}</span>
+        <div class="spec-tags">${g.tags.map(t => `<span class="spec-tag">${t}</span>`).join('')}</div>
+      </div>`).join('')}
       ${item.supplier && item.supplier !== '미정' ? `<div class="card-meta">업체: ${item.supplier}${item.leadtime ? ' · ' + item.leadtime : ''}</div>` : ''}
       <div class="card-detail" id="detail-${item._idx}">
         <div class="detail-inner">
