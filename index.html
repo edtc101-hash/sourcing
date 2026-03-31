@@ -247,9 +247,42 @@
     overflow: hidden;
     margin-bottom: 10px;
     transition: opacity 0.3s;
+    cursor: pointer;
   }
   .card-image:hover { opacity: 0.88; }
   .card-image .icon { font-size: 32px; opacity: 0.3; }
+  .card-image img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
+  .card-image .paste-hint {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.5); color: #fff; font-size: 11px;
+    opacity: 0; transition: opacity 0.2s;
+  }
+  .card-image:hover .paste-hint { opacity: 1; }
+
+  /* Image drop zone in form */
+  .img-drop {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+    position: relative;
+    min-height: 80px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .img-drop:focus, .img-drop:hover { border-color: var(--accent); }
+  .img-drop-text { font-size: 12px; color: var(--text-muted); }
+  .img-drop-clear {
+    font-size: 11px; color: var(--red); background: none; border: none;
+    cursor: pointer; font-family: inherit; text-decoration: underline;
+  }
   .card-badge {
     position: absolute;
     top: 12px;
@@ -603,7 +636,17 @@
       <div class="form-section-title">외관</div>
       <div class="form-row">
         <div class="form-group"><label>색상</label><input id="f_color"></div>
-        <div class="form-group"><label>이미지 URL</label><input id="f_img"></div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group">
+          <label>이미지 (클릭 후 Ctrl+V로 붙여넣기)</label>
+          <div class="img-drop" id="f_img_drop" tabindex="0">
+            <span class="img-drop-text">클릭 후 이미지 붙여넣기 (Ctrl+V)</span>
+            <img id="f_img_preview" style="display:none; max-width:100%; max-height:160px; border-radius:6px;">
+            <button type="button" class="img-drop-clear" id="f_img_clear" style="display:none" onclick="clearFormImage(event)">삭제</button>
+          </div>
+          <input type="hidden" id="f_img">
+        </div>
       </div>
     </div>
 
@@ -786,9 +829,10 @@ function render() {
     const memos = [item.pmemo, item.smemo, item.note].filter(Boolean);
 
     return `<div class="product-card" style="animation-delay:${i*0.03}s">
-      <div class="card-image">
-        <span class="icon">${icon}</span>
+      <div class="card-image" onclick="pasteImageToCard(${item._idx})" tabindex="0" data-idx="${item._idx}">
+        ${item.img ? `<img src="${item.img}">` : `<span class="icon">${icon}</span>`}
         <span class="card-badge ${badgeClass}">${item.stage}</span>
+        <div class="paste-hint">${item.img ? '클릭 후 Ctrl+V로 변경' : '클릭 후 Ctrl+V로 이미지 추가'}</div>
       </div>
       <div class="card-info">
         <span class="card-name">${item.sub || item.cat}</span>
@@ -843,6 +887,7 @@ function openModal(idx) {
     document.getElementById('f_install').value = item.install || '';
     document.getElementById('f_color').value = item.color || '';
     document.getElementById('f_img').value = item.img || '';
+    updateFormImagePreview(item.img || '');
     document.getElementById('f_supplier').value = item.supplier || '';
     document.getElementById('f_wechat').value = item.wechat || '';
     document.getElementById('f_confirmed').value = item.confirmed || 'N';
@@ -860,6 +905,7 @@ function openModal(idx) {
     document.getElementById('f_confirmed').value = 'N';
     document.getElementById('f_stage').value = '탐색중';
     document.getElementById('f_sample').value = '미요청';
+    updateFormImagePreview('');
   }
 }
 function closeModal() { document.getElementById('modalOverlay').classList.remove('show'); }
@@ -927,6 +973,67 @@ async function syncFromSheet() {
     }
   } catch(e) {}
 }
+
+// ===== IMAGE PASTE =====
+function updateFormImagePreview(src) {
+  const preview = document.getElementById('f_img_preview');
+  const text = document.querySelector('.img-drop-text');
+  const clear = document.getElementById('f_img_clear');
+  if (src) {
+    preview.src = src; preview.style.display = 'block';
+    text.style.display = 'none'; clear.style.display = 'inline';
+  } else {
+    preview.src = ''; preview.style.display = 'none';
+    text.style.display = ''; clear.style.display = 'none';
+  }
+}
+function clearFormImage(e) {
+  e.stopPropagation();
+  document.getElementById('f_img').value = '';
+  updateFormImagePreview('');
+}
+document.getElementById('f_img_drop').addEventListener('paste', function(e) {
+  const ci = e.clipboardData.items;
+  for (let i = 0; i < ci.length; i++) {
+    if (ci[i].type.startsWith('image/')) {
+      const blob = ci[i].getAsFile();
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        document.getElementById('f_img').value = ev.target.result;
+        updateFormImagePreview(ev.target.result);
+      };
+      reader.readAsDataURL(blob);
+      e.preventDefault();
+      return;
+    }
+  }
+});
+
+let pasteTargetIdx = -1;
+function pasteImageToCard(idx) {
+  pasteTargetIdx = idx;
+  const el = document.querySelector('.card-image[data-idx="'+idx+'"]');
+  if (el) el.focus();
+}
+document.addEventListener('paste', function(e) {
+  if (document.getElementById('modalOverlay').classList.contains('show')) return;
+  if (pasteTargetIdx < 0) return;
+  const ci = e.clipboardData.items;
+  for (let i = 0; i < ci.length; i++) {
+    if (ci[i].type.startsWith('image/')) {
+      const blob = ci[i].getAsFile();
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        items[pasteTargetIdx].img = ev.target.result;
+        saveData(); render();
+        pasteTargetIdx = -1;
+      };
+      reader.readAsDataURL(blob);
+      e.preventDefault();
+      return;
+    }
+  }
+});
 
 loadData(); buildSidebar(); render();
 </script>
