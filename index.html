@@ -229,16 +229,123 @@
     padding-bottom: 80px;
   }
 
-  /* ── Product Card — All Natural style ── */
+  /* ── Product Card — Framer-style animations ── */
   .product-card {
     cursor: default;
-    animation: fadeUp 0.4s var(--ease) backwards;
+    opacity: 0;
+    transform: translateY(24px) scale(0.97);
+    transition: opacity 0.6s var(--ease), transform 0.6s var(--ease), box-shadow 0.4s var(--ease);
   }
-  @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } }
+  .product-card.visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  .product-card:hover {
+    box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+    transform: translateY(-3px) scale(1);
+  }
+  .product-card.visible:hover {
+    transform: translateY(-3px) scale(1.01);
+  }
+
+  /* Stagger children inside card */
+  .product-card .card-info,
+  .product-card .card-cat,
+  .product-card .spec-group,
+  .product-card .card-meta,
+  .product-card .card-actions {
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.4s var(--ease), transform 0.4s var(--ease);
+  }
+  .product-card.visible .card-info { transition-delay: 0.08s; opacity: 1; transform: none; }
+  .product-card.visible .card-cat { transition-delay: 0.12s; opacity: 1; transform: none; }
+  .product-card.visible .spec-group:nth-child(1) { transition-delay: 0.16s; opacity: 1; transform: none; }
+  .product-card.visible .spec-group:nth-child(2) { transition-delay: 0.2s; opacity: 1; transform: none; }
+  .product-card.visible .spec-group:nth-child(3) { transition-delay: 0.24s; opacity: 1; transform: none; }
+  .product-card.visible .spec-group:nth-child(n+4) { transition-delay: 0.28s; opacity: 1; transform: none; }
+  .product-card.visible .card-meta { transition-delay: 0.3s; opacity: 1; transform: none; }
+  .product-card.visible .card-actions { transition-delay: 0.34s; opacity: 1; transform: none; }
+
+  /* Card image zoom on hover */
+  .card-image .icon,
+  .card-image img {
+    transition: transform 0.5s var(--ease);
+  }
+  .product-card:hover .card-image .icon,
+  .product-card:hover .card-image img {
+    transform: scale(1.05);
+  }
+  .product-card:hover .card-image img { transform: scale(1.05); position: absolute; inset: 0; }
+
+  /* KPI counter animation */
+  .kpi-num {
+    transition: all 0.4s var(--ease);
+  }
+
+  /* Smooth badge hover */
+  .card-badge {
+    transition: transform 0.3s var(--ease), opacity 0.3s;
+  }
+  .product-card:hover .card-badge {
+    transform: scale(1.05);
+  }
+
+  /* Sidebar item hover micro-interaction */
+  .sidebar-item {
+    transition: color 0.15s, transform 0.2s var(--ease), background 0.2s;
+  }
+  .sidebar-item:hover {
+    transform: translateX(3px);
+  }
+
+  /* Spec tag hover */
+  .spec-tag {
+    transition: background 0.2s, transform 0.2s var(--ease);
+  }
+  .spec-tag:hover {
+    background: color-mix(in srgb, var(--accent-soft) 80%, var(--accent));
+    transform: translateY(-1px);
+  }
+
+  /* Modal entrance */
+  .modal {
+    animation: modalIn 0.35s var(--ease);
+  }
+  @keyframes modalIn {
+    from { opacity: 0; transform: translateY(20px) scale(0.96); }
+    to { opacity: 1; transform: none; }
+  }
+
+  /* Header links */
+  .header-link {
+    transition: color 0.2s, transform 0.15s;
+  }
+  .header-link:hover {
+    transform: translateY(-1px);
+  }
+
+  /* Action links underline animation */
+  .action-link {
+    text-decoration: none;
+    position: relative;
+  }
+  .action-link::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: 0;
+    height: 1px;
+    background: currentColor;
+    transition: width 0.25s var(--ease);
+  }
+  .action-link:hover::after { width: 100%; }
 
   .card-image {
     aspect-ratio: 4 / 3;
     background: var(--surface-alt);
+    background-image: linear-gradient(135deg, var(--surface-alt) 0%, color-mix(in srgb, var(--surface-alt) 85%, var(--accent)) 100%);
     border-radius: var(--radius);
     display: flex;
     align-items: center;
@@ -249,8 +356,12 @@
     transition: opacity 0.3s;
     cursor: pointer;
   }
+  .card-image:has(img) {
+    background-image: none;
+    background: var(--surface-alt);
+  }
   .card-image:hover { opacity: 0.88; }
-  .card-image .icon { font-size: 32px; opacity: 0.3; }
+  .card-image .icon { font-size: 48px; opacity: 0.45; filter: grayscale(0.3); }
   .card-image img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
   .card-image .paste-hint {
     position: absolute; inset: 0;
@@ -864,6 +975,7 @@ function render() {
   }).join('');
 
   updateKPI();
+  requestAnimationFrame(function() { if (typeof observeCards === 'function') observeCards(); });
 }
 
 function toggleDetail(idx) {
@@ -1009,12 +1121,27 @@ document.getElementById('f_img_drop').addEventListener('paste', function(e) {
   }
 });
 
+// Card image paste — click activates, then any paste goes to that card
 let pasteTargetIdx = -1;
 function pasteImageToCard(idx) {
   pasteTargetIdx = idx;
+  // Visual feedback
+  document.querySelectorAll('.card-image').forEach(el => el.style.outline = '');
   const el = document.querySelector('.card-image[data-idx="'+idx+'"]');
-  if (el) el.focus();
+  if (el) {
+    el.focus();
+    el.style.outline = '2px solid var(--accent)';
+    el.style.outlineOffset = '-2px';
+  }
 }
+// Clear paste target when clicking elsewhere
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.card-image')) {
+    pasteTargetIdx = -1;
+    document.querySelectorAll('.card-image').forEach(el => el.style.outline = '');
+  }
+});
+// Global paste handler
 document.addEventListener('paste', function(e) {
   if (document.getElementById('modalOverlay').classList.contains('show')) return;
   if (pasteTargetIdx < 0) return;
@@ -1023,9 +1150,10 @@ document.addEventListener('paste', function(e) {
     if (ci[i].type.startsWith('image/')) {
       const blob = ci[i].getAsFile();
       const reader = new FileReader();
+      const targetIdx = pasteTargetIdx;
       reader.onload = function(ev) {
-        items[pasteTargetIdx].img = ev.target.result;
-        saveData(); render();
+        items[targetIdx].img = ev.target.result;
+        saveData(); render(); observeCards();
         pasteTargetIdx = -1;
       };
       reader.readAsDataURL(blob);
@@ -1035,7 +1163,33 @@ document.addEventListener('paste', function(e) {
   }
 });
 
+// ===== SCROLL ANIMATION (IntersectionObserver) =====
+function observeCards() {
+  const observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry, i) {
+      if (entry.isIntersecting) {
+        // Stagger delay based on position in viewport batch
+        const delay = Array.from(entry.target.parentElement.children).indexOf(entry.target) % 6 * 60;
+        setTimeout(function() { entry.target.classList.add('visible'); }, delay);
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.05, rootMargin: '0px 0px -40px 0px' });
+
+  document.querySelectorAll('.product-card:not(.visible)').forEach(function(card) {
+    observer.observe(card);
+  });
+}
+
+// Override render to also trigger scroll observation
+const _origRender = render;
+const _patchedRender = function() {
+  _origRender();
+  requestAnimationFrame(observeCards);
+};
+// Patch: replace render calls at init
 loadData(); buildSidebar(); render();
+requestAnimationFrame(observeCards);
 </script>
 </body>
 </html>
