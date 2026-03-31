@@ -14,9 +14,9 @@
     --glass-border: rgba(255,255,255,0.5);
     --glass-shadow: 0 8px 32px rgba(0,0,0,0.06);
     --dark: #1d1d1f;
-    --lime: #a3e635;
-    --lime-dim: rgba(163,230,53,0.1);
-    --lime-glow: rgba(163,230,53,0.3);
+    --lime: #1d1d1f;
+    --lime-dim: rgba(29,29,31,0.08);
+    --lime-glow: rgba(29,29,31,0.25);
     --text-primary: #1d1d1f;
     --text-secondary: #6e6e73;
     --text-muted: #aeaeb2;
@@ -51,6 +51,9 @@
       --shadow-md: 0 4px 16px rgba(0,0,0,0.3);
       --shadow-lg: 0 16px 48px rgba(0,0,0,0.4);
       --shadow-card-hover: 0 24px 60px rgba(0,0,0,0.5);
+      --lime: #f5f5f7;
+      --lime-dim: rgba(245,245,247,0.08);
+      --lime-glow: rgba(245,245,247,0.2);
     }
   }
 
@@ -97,8 +100,8 @@
     display: flex; align-items: center; gap: 6px;
   }
   .header-btn:hover { background: rgba(255,255,255,0.16); }
-  .header-btn.lime { background: var(--lime); color: #000; border-color: var(--lime); }
-  .header-btn.lime:hover { background: #bef264; }
+  .header-btn.lime { background: #f5f5f7; color: #000; border-color: #f5f5f7; }
+  .header-btn.lime:hover { background: #e5e5e7; }
   .sync-indicator { width: 6px; height: 6px; border-radius: 50%; background: var(--lime); }
   .sync-indicator.offline { background: #ef4444; }
   .sync-indicator.syncing { background: #f59e0b; animation: pulse 1s infinite; }
@@ -122,7 +125,7 @@
   }
   .kpi-card .kpi-num { font-size: 28px; font-weight: 700; color: var(--text-primary); margin-bottom: 2px; }
   .kpi-card .kpi-label { font-size: 11px; color: var(--text-secondary); letter-spacing: 0.5px; }
-  .kpi-card.lime .kpi-num { color: var(--lime); }
+  .kpi-card.lime .kpi-num { color: #4ade80; }
   .kpi-card.orange .kpi-num { color: #f59e0b; }
   .kpi-card.blue .kpi-num { color: #3b82f6; }
 
@@ -235,8 +238,8 @@
   .stage-품질검수 { background: rgba(96,165,250,0.2); color: #60a5fa; }
   .stage-가격협상 { background: rgba(167,139,250,0.2); color: #a78bfa; }
   .stage-업체확정 { background: rgba(74,222,128,0.2); color: #4ade80; }
-  .stage-발주준비 { background: rgba(163,230,53,0.2); color: var(--lime); }
-  .stage-발주완료 { background: rgba(163,230,53,0.3); color: var(--lime); border: 1px solid var(--lime); }
+  .stage-발주준비 { background: rgba(29,29,31,0.1); color: var(--text-primary); }
+  .stage-발주완료 { background: var(--text-primary); color: var(--bg); font-weight: 700; }
 
   .card-body { padding: 14px 20px 0; }
 
@@ -282,7 +285,7 @@
   }
   .info-row .label { color: var(--text-muted); }
   .info-row .value { color: var(--text-primary); font-weight: 500; }
-  .info-row .value.price { color: var(--lime); }
+  .info-row .value.price { color: #4ade80; }
 
   /* Progress bar */
   .progress-bar {
@@ -295,7 +298,7 @@
   .progress-fill {
     height: 100%;
     border-radius: 2px;
-    background: linear-gradient(90deg, var(--lime), #d4fc79);
+    background: linear-gradient(90deg, var(--text-primary), var(--text-secondary));
     transition: width 0.6s var(--ease-out);
   }
   .memo-text {
@@ -342,18 +345,18 @@
     right: 28px;
     width: 52px; height: 52px;
     border-radius: 50%;
-    background: var(--lime);
-    color: #000;
+    background: var(--text-primary);
+    color: var(--bg);
     border: none;
     font-size: 26px;
     font-weight: 300;
     cursor: pointer;
-    box-shadow: 0 8px 24px rgba(163,230,53,0.4);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
     transition: all 0.3s var(--ease-spring);
     z-index: 80;
     display: flex; align-items: center; justify-content: center;
   }
-  .fab:hover { transform: scale(1.1); box-shadow: 0 12px 32px rgba(163,230,53,0.5); }
+  .fab:hover { transform: scale(1.1); box-shadow: 0 12px 32px rgba(0,0,0,0.4); }
 
   /* ── Modal ── */
   .modal-overlay {
@@ -413,8 +416,8 @@
   }
   .btn-cancel { background: transparent; color: var(--text-secondary); }
   .btn-cancel:hover { background: var(--border); }
-  .btn-save { background: var(--lime); color: #000; border-color: var(--lime); }
-  .btn-save:hover { background: #bef264; }
+  .btn-save { background: var(--text-primary); color: var(--bg); border-color: var(--text-primary); }
+  .btn-save:hover { opacity: 0.85; }
 
   /* ── Confirm Dialog ── */
   .confirm-overlay {
