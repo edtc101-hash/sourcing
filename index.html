@@ -404,6 +404,7 @@
   .badge-sample { background: #fef3c7; color: #92400e; }
   .badge-ordered { background: #d1fae5; color: #065f46; }
 
+  .card-content { padding: 12px 14px 0; }
   .card-info { margin-bottom: 2px; }
   .card-name { font-size: 13px; font-weight: 500; display: block; }
   .card-price { font-size: 11px; color: var(--green); display: block; margin-top: 2px; word-break: break-word; }
@@ -491,7 +492,7 @@
     display: flex;
     gap: 12px;
     margin-top: 10px;
-    padding-top: 8px;
+    padding: 8px 14px 14px;
   }
   .action-link {
     font-size: 11px;
@@ -1003,25 +1004,27 @@ function render() {
         <span class="card-badge ${badgeClass}">${item.stage}</span>
         <div class="paste-hint">${item.img ? '클릭하면 이미지 교체' : '클릭하면 이미지 붙여넣기'}</div>
       </div>
-      <div class="card-info">
-        <span class="card-name">${item.sub || item.cat}</span>
-        <span class="card-price">${item.price || ''}</span>
-      </div>
-      <div class="card-cat">${item.cat}${item.model ? ' · ' + item.model : ''}</div>
-      ${specGroups.map(g => `<div class="spec-group">
-        <span class="spec-group-label">${g.label}</span>
-        <div class="spec-tags">${g.tags.map(t => `<span class="spec-tag">${t}</span>`).join('')}</div>
-      </div>`).join('')}
-      ${item.supplier && item.supplier !== '미정' ? `<div class="card-meta">업체: ${item.supplier}${item.leadtime ? ' · ' + item.leadtime : ''}</div>` : ''}
-      <div class="card-detail" id="detail-${item._idx}">
-        <div class="detail-inner">
-          <div class="detail-row"><span class="dl">업체</span><span class="dv">${item.supplier || '-'}${item.wechat ? ' ('+item.wechat+')' : ''}</span></div>
-          ${item.moq ? `<div class="detail-row"><span class="dl">MOQ</span><span class="dv">${item.moq}</span></div>` : ''}
-          ${item.price ? `<div class="detail-row"><span class="dl">단가</span><span class="dv price">${item.price}</span></div>` : ''}
-          ${item.leadtime ? `<div class="detail-row"><span class="dl">제작기간</span><span class="dv">${item.leadtime}</span></div>` : ''}
-          <div class="detail-row"><span class="dl">진행</span><span class="dv">${item.stage} (${progress}%)</span></div>
-          <div class="progress-track"><div class="progress-fill" style="width:${progress}%"></div></div>
-          ${memos.length ? `<div class="detail-memo">${memos.join('\n')}</div>` : ''}
+      <div class="card-content">
+        <div class="card-info">
+          <span class="card-name">${item.sub || item.cat}</span>
+          <span class="card-price">${item.price || ''}</span>
+        </div>
+        <div class="card-cat">${item.cat}${item.model ? ' · ' + item.model : ''}</div>
+        ${specGroups.map(g => `<div class="spec-group">
+          <span class="spec-group-label">${g.label}</span>
+          <div class="spec-tags">${g.tags.map(t => `<span class="spec-tag">${t}</span>`).join('')}</div>
+        </div>`).join('')}
+        ${item.supplier && item.supplier !== '미정' ? `<div class="card-meta">업체: ${item.supplier}${item.leadtime ? ' · ' + item.leadtime : ''}</div>` : ''}
+        <div class="card-detail" id="detail-${item._idx}">
+          <div class="detail-inner">
+            <div class="detail-row"><span class="dl">업체</span><span class="dv">${item.supplier || '-'}${item.wechat ? ' ('+item.wechat+')' : ''}</span></div>
+            ${item.moq ? `<div class="detail-row"><span class="dl">MOQ</span><span class="dv">${item.moq}</span></div>` : ''}
+            ${item.price ? `<div class="detail-row"><span class="dl">단가</span><span class="dv price">${item.price}</span></div>` : ''}
+            ${item.leadtime ? `<div class="detail-row"><span class="dl">제작기간</span><span class="dv">${item.leadtime}</span></div>` : ''}
+            <div class="detail-row"><span class="dl">진행</span><span class="dv">${item.stage} (${progress}%)</span></div>
+            <div class="progress-track"><div class="progress-fill" style="width:${progress}%"></div></div>
+            ${memos.length ? `<div class="detail-memo">${memos.join('\n')}</div>` : ''}
+          </div>
         </div>
       </div>
       <div class="card-actions">
