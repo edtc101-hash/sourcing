@@ -1142,24 +1142,40 @@ function importJSON(e) {
 }
 
 async function syncFromSheet() {
-  if (!APPS_SCRIPT_URL) { loadData(); buildSidebar(); render(); return; }
+  // data.json에서 강제 새로고침 (IndexedDB 덮어쓰기)
   try {
-    const res = await fetch(APPS_SCRIPT_URL + '?action=list');
-    const data = await res.json();
-    if (data.success) {
-      items = data.products.map((p, i) => {
-        const s = data.sourcing[i] || {};
-        return { cat: p['제품군']||'', sub: p['세부품목']||'', model: p['모델명']||'',
-          depth: String(p['깊이(mm)']||''), side: String(p['사이드높이(mm)']||''), back: String(p['백높이(mm)']||''),
-          otherSpec: p['기타규격']||'', color: p['색상']||'', material: p['재질']||'',
-          install: p['설치타입']||'', img: p['이미지URL']||'', pmemo: p['제품메모']||'',
-          supplier: s['업체명']||'', wechat: s['위챗ID']||'', confirmed: s['업체확정']||'N',
-          moq: s['MOQ']||'', price: s['단가(RMB)']||'', leadtime: s['제작기간']||'',
-          stage: s['소싱단계']||'탐색중', sample: s['샘플상태']||'미요청', smemo: s['진행메모']||'', note: s['비고']||'' };
-      });
-      saveData(); buildSidebar(); render();
+    const res = await fetch('./data.json?t=' + Date.now());
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.length) {
+        items = data;
+        await saveData();
+        buildSidebar(); render();
+        return;
+      }
     }
   } catch(e) {}
+
+  // Apps Script 폴백
+  if (APPS_SCRIPT_URL) {
+    try {
+      const res = await fetch(APPS_SCRIPT_URL + '?action=list');
+      const data = await res.json();
+      if (data.success) {
+        items = data.products.map((p, i) => {
+          const s = data.sourcing[i] || {};
+          return { cat: p['제품군']||'', sub: p['세부품목']||'', model: p['모델명']||'',
+            depth: String(p['깊이(mm)']||''), side: String(p['사이드높이(mm)']||''), back: String(p['백높이(mm)']||''),
+            otherSpec: p['기타규격']||'', color: p['색상']||'', material: p['재질']||'',
+            install: p['설치타입']||'', img: p['이미지URL']||'', pmemo: p['제품메모']||'',
+            supplier: s['업체명']||'', wechat: s['위챗ID']||'', confirmed: s['업체확정']||'N',
+            moq: s['MOQ']||'', price: s['단가(RMB)']||'', leadtime: s['제작기간']||'',
+            stage: s['소싱단계']||'탐색중', sample: s['샘플상태']||'미요청', smemo: s['진행메모']||'', note: s['비고']||'' };
+        });
+        await saveData(); buildSidebar(); render();
+      }
+    } catch(e) {}
+  }
 }
 
 // ===== IMAGE PASTE =====
