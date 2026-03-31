@@ -477,9 +477,9 @@
     border-radius: 2px;
     transition: width 0.5s var(--ease);
   }
-  .detail-memo {
+  .detail-memo { font-weight: 600;
     font-size: 11px;
-    color: var(--text-muted);
+    color: var(--text-primary);
     margin-top: 8px;
     line-height: 1.6;
     background: var(--accent-soft);
@@ -1025,7 +1025,7 @@ function render() {
         </div>
       </div>
       <div class="card-actions">
-        <button class="action-link" onclick="toggleDetail(${item._idx})">Details</button>
+        <button class="action-link" onclick="toggleDetail(${item._idx})">해결과제</button>
         <button class="action-link" onclick="openModal(${item._idx})">Edit</button>
         <button class="action-link danger" onclick="confirmDelete(${item._idx})">Delete</button>
       </div>
