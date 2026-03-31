@@ -1002,7 +1002,7 @@ function render() {
       <div class="card-image" onclick="pasteImageToCard(${item._idx})" tabindex="0" data-idx="${item._idx}">
         ${item.img ? `<img src="${item.img}">` : `<span class="icon">${icon}</span>`}
         <span class="card-badge ${badgeClass}">${item.stage}</span>
-        <div class="paste-hint">${item.img ? '클릭 후 Ctrl+V로 변경' : '클릭 후 Ctrl+V로 이미지 추가'}</div>
+        <div class="paste-hint">${item.img ? '클릭하면 이미지 교체' : '클릭하면 이미지 붙여넣기'}</div>
       </div>
       <div class="card-info">
         <span class="card-name">${item.sub || item.cat}</span>
@@ -1196,48 +1196,41 @@ document.getElementById('f_img_drop').addEventListener('paste', function(e) {
   }
 });
 
-// Card image paste — click activates, then any paste goes to that card
-let pasteTargetIdx = -1;
-function pasteImageToCard(idx) {
-  pasteTargetIdx = idx;
-  // Visual feedback
-  document.querySelectorAll('.card-image').forEach(el => el.style.outline = '');
-  const el = document.querySelector('.card-image[data-idx="'+idx+'"]');
-  if (el) {
-    el.focus();
-    el.style.outline = '2px solid var(--accent)';
-    el.style.outlineOffset = '-2px';
-  }
-}
-// Clear paste target when clicking elsewhere
-document.addEventListener('click', function(e) {
-  if (!e.target.closest('.card-image')) {
-    pasteTargetIdx = -1;
-    document.querySelectorAll('.card-image').forEach(el => el.style.outline = '');
-  }
-});
-// Global paste handler
-document.addEventListener('paste', function(e) {
-  if (document.getElementById('modalOverlay').classList.contains('show')) return;
-  if (pasteTargetIdx < 0) return;
-  const ci = e.clipboardData.items;
-  for (let i = 0; i < ci.length; i++) {
-    if (ci[i].type.startsWith('image/')) {
-      const blob = ci[i].getAsFile();
-      const reader = new FileReader();
-      const targetIdx = pasteTargetIdx;
-      reader.onload = async function(ev) {
-        const compressed = await compressImage(ev.target.result, 400);
-        items[targetIdx].img = compressed;
-        await saveData(); render(); observeCards();
-        pasteTargetIdx = -1;
-      };
-      reader.readAsDataURL(blob);
-      e.preventDefault();
-      return;
+// Card image paste — 클릭하면 즉시 클립보드에서 이미지 읽기
+async function pasteImageToCard(idx) {
+  try {
+    const clipItems = await navigator.clipboard.read();
+    for (const item of clipItems) {
+      const imgType = item.types.find(t => t.startsWith('image/'));
+      if (imgType) {
+        const blob = await item.getType(imgType);
+        const reader = new FileReader();
+        reader.onload = async function(ev) {
+          const compressed = await compressImage(ev.target.result, 400);
+          items[idx].img = compressed;
+          await saveData(); render(); observeCards();
+        };
+        reader.readAsDataURL(blob);
+        return;
+      }
+    }
+    // 클립보드에 이미지 없으면 안내
+    const el = document.querySelector('.card-image[data-idx="'+idx+'"]');
+    if (el) {
+      const hint = el.querySelector('.paste-hint');
+      if (hint) { hint.textContent = '클립보드에 이미지가 없습니다'; hint.style.opacity = '1'; hint.style.color = '#ef4444'; }
+      setTimeout(() => { if (hint) { hint.textContent = '클릭하면 클립보드에서 이미지 붙여넣기'; hint.style.opacity = ''; hint.style.color = ''; } }, 2000);
+    }
+  } catch(e) {
+    // Clipboard API 권한 거부 시 fallback
+    const el = document.querySelector('.card-image[data-idx="'+idx+'"]');
+    if (el) {
+      const hint = el.querySelector('.paste-hint');
+      if (hint) { hint.textContent = '클립보드 권한을 허용해주세요'; hint.style.opacity = '1'; }
+      setTimeout(() => { if (hint) { hint.textContent = '클릭하면 클립보드에서 이미지 붙여넣기'; hint.style.opacity = ''; } }, 2000);
     }
   }
-});
+}
 
 // ===== SCROLL ANIMATION (IntersectionObserver) =====
 function observeCards() {
