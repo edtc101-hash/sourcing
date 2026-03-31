@@ -342,9 +342,8 @@
   .action-link:hover::after { width: 100%; }
 
   .card-image {
-    aspect-ratio: 4 / 3;
     width: 100%;
-    max-height: 180px;
+    height: 140px;
     background: var(--surface-alt);
     border-radius: var(--radius);
     display: flex;
@@ -355,10 +354,7 @@
     margin-bottom: 10px;
     transition: opacity 0.3s;
     cursor: pointer;
-  }
-  .card-image:has(img) {
-    background-image: none;
-    background: var(--surface-alt);
+    flex-shrink: 0;
   }
   .card-image:hover { opacity: 0.88; }
   .card-image .icon { font-size: 48px; opacity: 0.45; filter: grayscale(0.3); }
@@ -659,6 +655,7 @@
   <div class="logo">INFAM</div>
   <div class="header-actions">
     <button class="header-link" onclick="syncFromSheet()">Sync</button>
+    <button class="header-link" onclick="saveForDeploy()">Save</button>
     <button class="header-link" onclick="exportJSON()">Export</button>
     <button class="header-link" onclick="document.getElementById('importFile').click()">Import</button>
     <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
@@ -858,24 +855,29 @@ function openDB() {
   });
 }
 async function loadData() {
+  // 1. IndexedDB에서 로드
   try {
     const db = await openDB();
     const tx = db.transaction(DB_STORE, 'readonly');
     const store = tx.objectStore(DB_STORE);
     const req = store.get('items');
     const saved = await new Promise(function(r) { req.onsuccess = function() { r(req.result); }; req.onerror = function() { r(null); }; });
-    if (saved && saved.length) {
-      items = saved;
-    } else {
-      // Try migrate from localStorage
-      const ls = localStorage.getItem(STORAGE_KEY);
-      items = ls ? JSON.parse(ls) : JSON.parse(JSON.stringify(DEFAULT_DATA));
-      await saveData();
+    if (saved && saved.length) { items = saved; return; }
+  } catch(e) {}
+
+  // 2. data.json 파일에서 로드 (배포 시 이미지 포함 데이터)
+  try {
+    const res = await fetch('./data.json?t=' + Date.now());
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.length) { items = data; await saveData(); return; }
     }
-  } catch(e) {
-    const ls = localStorage.getItem(STORAGE_KEY);
-    items = ls ? JSON.parse(ls) : JSON.parse(JSON.stringify(DEFAULT_DATA));
-  }
+  } catch(e) {}
+
+  // 3. localStorage 폴백
+  const ls = localStorage.getItem(STORAGE_KEY);
+  items = ls ? JSON.parse(ls) : JSON.parse(JSON.stringify(DEFAULT_DATA));
+  await saveData();
 }
 async function saveData() {
   try {
@@ -1114,6 +1116,21 @@ function exportJSON() {
   const blob = new Blob([JSON.stringify(items, null, 2)], { type: 'application/json' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
   a.download = 'infam-sourcing-' + new Date().toISOString().slice(0,10) + '.json'; a.click();
+}
+async function saveForDeploy() {
+  // 이미지를 300px로 압축하여 data.json으로 다운로드 (배포용)
+  const compressed = [];
+  for (const item of items) {
+    const copy = {...item};
+    delete copy._idx;
+    if (copy.img && copy.img.startsWith('data:')) {
+      copy.img = await compressImage(copy.img, 300);
+    }
+    compressed.push(copy);
+  }
+  const blob = new Blob([JSON.stringify(compressed)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'data.json'; a.click();
 }
 function importJSON(e) {
   const file = e.target.files[0]; if (!file) return;
