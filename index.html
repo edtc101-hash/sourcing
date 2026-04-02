@@ -935,9 +935,15 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const STORAGE_KEY = 'infam-sourcing-v2';
 const APPS_SCRIPT_URL = '';
+
+// ===== Supabase =====
+const SUPABASE_URL = 'https://xomnrqgzspsukyasrayo.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhvbW5ycWd6c3BzdWt5YXNyYXlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxMDk3NTcsImV4cCI6MjA5MDY4NTc1N30.Z5w8dmLy07Rhgbl2guWLORgqHK_n96fJKDq1Xy6lAj4';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const STAGE_ORDER = ['탐색중','샘플요청','샘플수령','품질검수','가격협상','업체확정','발주준비','발주완료'];
 const CAT_ICONS = {'서랍재':'🗄️','언더레일':'🛤️','부자재':'🔧','수납':'👖','경첩':'🔩','옷봉/손잡이':'👔','기타':'📦'};
 
@@ -966,70 +972,89 @@ let items = [];
 let activeCat = null;
 let activeStage = null;
 
-// ===== IndexedDB for reliable large data storage =====
-const DB_NAME = 'infam-sourcing-db';
-const DB_STORE = 'data';
-function openDB() {
-  return new Promise(function(resolve, reject) {
-    const req = indexedDB.open(DB_NAME, 1);
-    req.onupgradeneeded = function(e) { e.target.result.createObjectStore(DB_STORE); };
-    req.onsuccess = function(e) { resolve(e.target.result); };
-    req.onerror = function() { reject(); };
-  });
-}
+// ===== Supabase 기반 데이터 저장 =====
 async function loadData() {
-  let idbData = null, lsData = null;
-
-  // 1. IndexedDB에서 로드
   try {
-    const db = await openDB();
-    const tx = db.transaction(DB_STORE, 'readonly');
-    const store = tx.objectStore(DB_STORE);
-    const req = store.get('items');
-    idbData = await new Promise(function(r) { req.onsuccess = function() { r(req.result); }; req.onerror = function() { r(null); }; });
-  } catch(e) {}
+    const { data, error } = await sb.from('products').select('*').order('id');
+    if (!error && data && data.length) {
+      items = data.map(function(row) {
+        const d = row.data || {};
+        d._dbId = row.id;
+        return d;
+      });
+      return;
+    }
+  } catch(e) { console.warn('Supabase 로드 실패:', e); }
 
-  // 2. localStorage 폴백
-  try {
-    const ls = localStorage.getItem(STORAGE_KEY);
-    if (ls) lsData = JSON.parse(ls);
-  } catch(e) {}
-
-  // 사용자가 저장한 데이터가 있으면 그것을 우선 사용
-  const hasLocalSave = localStorage.getItem(STORAGE_KEY + '_ts');
-  if (hasLocalSave) {
-    if (idbData && idbData.length) { items = idbData; return; }
-    if (lsData && lsData.length) { items = lsData; return; }
-  }
-
-  // 3. 로컬 저장 없으면 data.json에서 초기 로드
+  // Supabase 비어있으면 → data.json에서 초기 마이그레이션
   try {
     const res = await fetch('./data.json?t=' + Date.now());
     if (res.ok) {
-      const data = await res.json();
-      if (data && data.length) { items = data; await saveData(); return; }
+      const jsonData = await res.json();
+      if (jsonData && jsonData.length) {
+        items = jsonData;
+        await migrateToSupabase();
+        return;
+      }
     }
   } catch(e) {}
 
-  // 4. 최종 폴백
-  if (idbData && idbData.length) { items = idbData; return; }
-  if (lsData && lsData.length) { items = lsData; return; }
+  // 최종 폴백: DEFAULT_DATA로 초기화
   items = JSON.parse(JSON.stringify(DEFAULT_DATA));
-  await saveData();
+  await migrateToSupabase();
 }
-async function saveData() {
-  // IndexedDB + localStorage 동시 저장 (안정성 확보)
-  try {
-    const db = await openDB();
-    const tx = db.transaction(DB_STORE, 'readwrite');
-    tx.objectStore(DB_STORE).put(items, 'items');
-    await new Promise(function(resolve, reject) { tx.oncomplete = resolve; tx.onerror = reject; });
-  } catch(e) {
-    console.warn('IndexedDB 저장 실패:', e);
+
+async function migrateToSupabase() {
+  // 전체 items를 Supabase에 일괄 등록
+  const rows = items.map(function(item) {
+    const d = Object.assign({}, item);
+    delete d._dbId;
+    delete d._idx;
+    return { data: d };
+  });
+  const { data, error } = await sb.from('products').insert(rows).select();
+  if (!error && data) {
+    items = data.map(function(row) {
+      const d = row.data || {};
+      d._dbId = row.id;
+      return d;
+    });
   }
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); } catch(e2) {}
-  // 마지막 저장 시간 기록
-  try { localStorage.setItem(STORAGE_KEY + '_ts', Date.now().toString()); } catch(e) {}
+}
+
+async function saveData() {
+  // 전체 저장 (개별 항목은 saveItemToSupabase에서 처리)
+  // 이 함수는 호환성을 위해 유지 — 카드 이미지 붙여넣기 등에서 호출
+  for (const item of items) {
+    if (item._dbId) {
+      const d = Object.assign({}, item);
+      const dbId = d._dbId;
+      delete d._dbId;
+      delete d._idx;
+      await sb.from('products').update({ data: d, updated_at: new Date().toISOString() }).eq('id', dbId);
+    }
+  }
+}
+
+async function saveOneItem(item) {
+  const d = Object.assign({}, item);
+  const dbId = d._dbId;
+  delete d._dbId;
+  delete d._idx;
+  if (dbId) {
+    await sb.from('products').update({ data: d, updated_at: new Date().toISOString() }).eq('id', dbId);
+  } else {
+    const { data, error } = await sb.from('products').insert({ data: d }).select();
+    if (!error && data && data[0]) {
+      item._dbId = data[0].id;
+    }
+  }
+}
+
+async function deleteOneItem(item) {
+  if (item._dbId) {
+    await sb.from('products').delete().eq('id', item._dbId);
+  }
 }
 
 // ===== Image compression (resize to max 400px) =====
@@ -1243,8 +1268,14 @@ async function saveItem() {
     smemo: document.getElementById('f_smemo').value, note: document.getElementById('f_note').value
   };
   obj.updatedAt = new Date().toISOString();
-  if (idx >= 0) items[idx] = obj; else items.push(obj);
-  await saveData(); closeModal(); buildSidebar(); render();
+  if (idx >= 0) {
+    obj._dbId = items[idx]._dbId;
+    items[idx] = obj;
+  } else {
+    items.push(obj);
+  }
+  await saveOneItem(obj);
+  closeModal(); buildSidebar(); render();
 }
 
 let deleteIdx = -1;
@@ -1254,13 +1285,18 @@ function confirmDelete(idx) {
   document.getElementById('confirmOverlay').classList.add('show');
 }
 function closeConfirm() { document.getElementById('confirmOverlay').classList.remove('show'); deleteIdx = -1; }
-document.getElementById('confirmBtn').onclick = function() {
-  if (deleteIdx >= 0) { items.splice(deleteIdx, 1); saveData(); buildSidebar(); render(); }
+document.getElementById('confirmBtn').onclick = async function() {
+  if (deleteIdx >= 0) {
+    const removed = items.splice(deleteIdx, 1)[0];
+    await deleteOneItem(removed);
+    buildSidebar(); render();
+  }
   closeConfirm();
 };
 
 function exportJSON() {
-  const blob = new Blob([JSON.stringify(items, null, 2)], { type: 'application/json' });
+  const exportData = items.map(function(item) { const c = Object.assign({}, item); delete c._dbId; delete c._idx; return c; });
+  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
   a.download = 'infam-sourcing-' + new Date().toISOString().slice(0,10) + '.json'; a.click();
 }
@@ -1270,6 +1306,7 @@ async function saveForDeploy() {
   for (const item of items) {
     const copy = {...item};
     delete copy._idx;
+    delete copy._dbId;
     if (copy.images && copy.images.length) {
       const compressed = [];
       for (const im of copy.images) {
@@ -1295,40 +1332,20 @@ function importJSON(e) {
 }
 
 async function syncFromSheet() {
-  // data.json에서 강제 새로고침 (IndexedDB 덮어쓰기)
+  // Supabase에서 최신 데이터 강제 새로고침
   try {
-    const res = await fetch('./data.json?t=' + Date.now());
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.length) {
-        items = data;
-        await saveData();
-        buildSidebar(); render();
-        return;
-      }
+    const { data, error } = await sb.from('products').select('*').order('id');
+    if (!error && data && data.length) {
+      items = data.map(function(row) {
+        const d = row.data || {};
+        d._dbId = row.id;
+        return d;
+      });
+      buildSidebar(); render();
+      return;
     }
   } catch(e) {}
-
-  // Apps Script 폴백
-  if (APPS_SCRIPT_URL) {
-    try {
-      const res = await fetch(APPS_SCRIPT_URL + '?action=list');
-      const data = await res.json();
-      if (data.success) {
-        items = data.products.map((p, i) => {
-          const s = data.sourcing[i] || {};
-          return { cat: p['제품군']||'', sub: p['세부품목']||'', model: p['모델명']||'',
-            depth: String(p['깊이(mm)']||''), side: String(p['사이드높이(mm)']||''), back: String(p['백높이(mm)']||''),
-            otherSpec: p['기타규격']||'', color: p['색상']||'', material: p['재질']||'',
-            install: p['설치타입']||'', img: p['이미지URL']||'', pmemo: p['제품메모']||'',
-            supplier: s['업체명']||'', wechat: s['위챗ID']||'', confirmed: s['업체확정']||'N',
-            moq: s['MOQ']||'', price: s['단가(RMB)']||'', leadtime: s['제작기간']||'',
-            stage: s['소싱단계']||'탐색중', sample: s['샘플상태']||'미요청', smemo: s['진행메모']||'', note: s['비고']||'' };
-        });
-        await saveData(); buildSidebar(); render();
-      }
-    } catch(e) {}
-  }
+  alert('새로고침할 데이터가 없습니다.');
 }
 
 // ===== MULTI-IMAGE (max 5) =====
@@ -1339,7 +1356,7 @@ let lightboxImages = [];
 let lightboxIdx = 0;
 
 function openLightbox(images, startIdx) {
-  lightboxImages = images.filter(function(src) { return src && !src.startsWith('data:application/pdf'); });
+  lightboxImages = images.filter(function(src) { return src && !src.startsWith('data:application/pdf') && !src.toLowerCase().endsWith('.pdf'); });
   if (!lightboxImages.length) return;
   lightboxIdx = Math.min(startIdx || 0, lightboxImages.length - 1);
   document.getElementById('lightboxImg').src = lightboxImages[lightboxIdx];
@@ -1382,7 +1399,7 @@ function buildImageGrid() {
   for (let i = 0; i < 10; i++) {
     const src = formImages[i] || '';
     if (src) {
-      const isPdf = src.startsWith('data:application/pdf');
+      const isPdf = src.startsWith('data:application/pdf') || src.toLowerCase().endsWith('.pdf');
       const dlBtn = '<button type="button" class="img-slot-dl" onclick="downloadFormFile(event,'+i+')" title="다운로드">⬇</button>';
       const delBtn = '<button type="button" class="img-slot-del" onclick="removeFormImage(event,'+i+')">&times;</button>';
       if (isPdf) {
@@ -1419,26 +1436,45 @@ function buildImageGrid() {
 
 let formImageNames = []; // PDF 파일명 추적
 
+async function uploadFileToStorage(file) {
+  const ext = file.name.split('.').pop();
+  const fileName = Date.now() + '_' + Math.random().toString(36).slice(2,8) + '.' + ext;
+  const { data, error } = await sb.storage.from('files').upload(fileName, file, {
+    cacheControl: '3600',
+    upsert: false
+  });
+  if (error) { console.warn('업로드 실패:', error); return null; }
+  const { data: urlData } = sb.storage.from('files').getPublicUrl(fileName);
+  return urlData.publicUrl;
+}
+
 function openFilePickerForSlot(slotIdx) {
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = 'image/*,application/pdf';
-  input.onchange = function(e) {
+  input.onchange = async function(e) {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async function(ev) {
-      if (file.type.startsWith('image/')) {
-        formImages[slotIdx] = await compressImage(ev.target.result, 400);
-        formImageNames[slotIdx] = file.name;
-      } else {
-        // PDF는 base64로 저장
-        formImages[slotIdx] = ev.target.result;
-        formImageNames[slotIdx] = file.name;
-      }
+    // Supabase Storage에 업로드
+    const url = await uploadFileToStorage(file);
+    if (url) {
+      formImages[slotIdx] = url;
+      formImageNames[slotIdx] = file.name;
       buildImageGrid();
-    };
-    reader.readAsDataURL(file);
+    } else {
+      // 폴백: base64로 저장
+      const reader = new FileReader();
+      reader.onload = async function(ev) {
+        if (file.type.startsWith('image/')) {
+          formImages[slotIdx] = await compressImage(ev.target.result, 400);
+        } else {
+          formImages[slotIdx] = ev.target.result;
+        }
+        formImageNames[slotIdx] = file.name;
+        buildImageGrid();
+      };
+      reader.readAsDataURL(file);
+    }
   };
   input.click();
 }
@@ -1449,13 +1485,20 @@ function handleSlotPaste(e) {
   for (let i = 0; i < ci.length; i++) {
     if (ci[i].type.startsWith('image/')) {
       const blob = ci[i].getAsFile();
-      const reader = new FileReader();
-      reader.onload = async function(ev) {
-        const compressed = await compressImage(ev.target.result, 400);
-        formImages[slotIdx] = compressed;
+      (async function() {
+        const url = await uploadFileToStorage(new File([blob], 'paste_' + Date.now() + '.jpg', { type: blob.type }));
+        if (url) {
+          formImages[slotIdx] = url;
+          formImageNames[slotIdx] = 'paste_image';
+        } else {
+          // 폴백
+          const reader = new FileReader();
+          const dataUrl = await new Promise(r => { reader.onload = ev => r(ev.target.result); reader.readAsDataURL(blob); });
+          formImages[slotIdx] = await compressImage(dataUrl, 400);
+          formImageNames[slotIdx] = 'paste_image';
+        }
         buildImageGrid();
-      };
-      reader.readAsDataURL(blob);
+      })();
       e.preventDefault();
       return;
     }
@@ -1473,13 +1516,18 @@ function downloadFormFile(e, idx) {
   e.stopPropagation();
   const src = formImages[idx];
   if (!src) return;
-  const isPdf = src.startsWith('data:application/pdf');
+  const isPdf = src.startsWith('data:application/pdf') || (src.includes('.pdf'));
   const name = formImageNames[idx] || (isPdf ? 'file.pdf' : 'image.jpg');
   if (confirm('"' + name + '" 을(를) 다운로드 하시겠습니까?')) {
-    const a = document.createElement('a');
-    a.href = src;
-    a.download = name;
-    a.click();
+    if (src.startsWith('http')) {
+      // URL 파일 → 새 탭에서 열기
+      window.open(src, '_blank');
+    } else {
+      const a = document.createElement('a');
+      a.href = src;
+      a.download = name;
+      a.click();
+    }
   }
 }
 
@@ -1511,23 +1559,27 @@ document.getElementById('pastePopup').addEventListener('paste', async function(e
   for (let i = 0; i < ci.length; i++) {
     if (ci[i].type.startsWith('image/')) {
       const blob = ci[i].getAsFile();
-      const reader = new FileReader();
-      reader.onload = async function(ev) {
-        const compressed = await compressImage(ev.target.result, 400);
-        // 프리뷰 표시
-        document.getElementById('pastePreview').innerHTML = '<img src="'+compressed+'">';
-        document.getElementById('pasteStatus').textContent = '이미지 적용 완료!';
-        // 저장 (images 배열에 추가)
-        if (pasteTargetIdx >= 0) {
-          if (!items[pasteTargetIdx].images) items[pasteTargetIdx].images = getItemImages(items[pasteTargetIdx]);
-          if (items[pasteTargetIdx].images.length < 10) {
-            items[pasteTargetIdx].images.push(compressed);
-          } else {
-            items[pasteTargetIdx].images[0] = compressed; // 꽉 차면 첫 번째 교체
-          }
-          items[pasteTargetIdx].img = items[pasteTargetIdx].images[0] || '';
-          await saveData();
+      // Storage에 업로드
+      const url = await uploadFileToStorage(new File([blob], 'paste_' + Date.now() + '.jpg', { type: blob.type }));
+      const imgSrc = url || await (async function() {
+        const reader = new FileReader();
+        const dataUrl = await new Promise(r => { reader.onload = ev => r(ev.target.result); reader.readAsDataURL(blob); });
+        return await compressImage(dataUrl, 400);
+      })();
+      // 프리뷰 표시
+      document.getElementById('pastePreview').innerHTML = '<img src="'+imgSrc+'">';
+      document.getElementById('pasteStatus').textContent = '이미지 적용 완료!';
+      // 저장 (images 배열에 추가)
+      if (pasteTargetIdx >= 0) {
+        if (!items[pasteTargetIdx].images) items[pasteTargetIdx].images = getItemImages(items[pasteTargetIdx]);
+        if (items[pasteTargetIdx].images.length < 10) {
+          items[pasteTargetIdx].images.push(imgSrc);
+        } else {
+          items[pasteTargetIdx].images[0] = imgSrc;
         }
+        items[pasteTargetIdx].img = items[pasteTargetIdx].images[0] || '';
+        await saveOneItem(items[pasteTargetIdx]);
+      }
         // 1초 후 팝업 닫기
         setTimeout(() => { closePastePopup(); render(); observeCards(); }, 800);
       };
