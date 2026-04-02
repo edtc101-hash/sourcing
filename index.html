@@ -370,6 +370,7 @@
   .img-grid {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: auto auto;
     gap: 8px;
   }
   .img-slot {
@@ -808,7 +809,7 @@
       </div>
       <div class="form-row full">
         <div class="form-group">
-          <label>파일 첨부 (이미지/PDF, 최대 5개)</label>
+          <label>파일 첨부 (이미지/PDF, 최대 10개)</label>
           <div class="img-grid" id="f_img_grid"></div>
           <div class="img-grid-hint">+ 클릭으로 파일 선택 또는 슬롯 클릭 후 Ctrl+V로 붙여넣기</div>
         </div>
@@ -1271,7 +1272,7 @@ function getItemImages(item) {
 function buildImageGrid() {
   const grid = document.getElementById('f_img_grid');
   let html = '';
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 10; i++) {
     const src = formImages[i] || '';
     if (src) {
       const isPdf = src.startsWith('data:application/pdf');
@@ -1386,7 +1387,7 @@ document.getElementById('pastePopup').addEventListener('paste', async function(e
         // 저장 (images 배열에 추가)
         if (pasteTargetIdx >= 0) {
           if (!items[pasteTargetIdx].images) items[pasteTargetIdx].images = getItemImages(items[pasteTargetIdx]);
-          if (items[pasteTargetIdx].images.length < 5) {
+          if (items[pasteTargetIdx].images.length < 10) {
             items[pasteTargetIdx].images.push(compressed);
           } else {
             items[pasteTargetIdx].images[0] = compressed; // 꽉 차면 첫 번째 교체
