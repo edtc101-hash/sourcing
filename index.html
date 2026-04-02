@@ -590,6 +590,42 @@
     text-decoration: underline;
   }
 
+  /* ── Image Lightbox ── */
+  .lightbox-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85); z-index: 300;
+    align-items: center; justify-content: center;
+    cursor: zoom-out;
+  }
+  .lightbox-overlay.show { display: flex; }
+  .lightbox-overlay img {
+    max-width: 90vw; max-height: 85vh;
+    border-radius: 8px; object-fit: contain;
+    animation: modalIn 0.25s var(--ease);
+  }
+  .lightbox-nav {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    background: rgba(255,255,255,0.15); border: none; color: #fff;
+    font-size: 28px; width: 44px; height: 44px; border-radius: 50%;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(4px); transition: background 0.2s;
+  }
+  .lightbox-nav:hover { background: rgba(255,255,255,0.3); }
+  .lightbox-prev { left: 16px; }
+  .lightbox-next { right: 16px; }
+  .lightbox-counter {
+    position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+    color: rgba(255,255,255,0.7); font-size: 13px; font-weight: 500;
+  }
+  .lightbox-close {
+    position: absolute; top: 16px; right: 16px;
+    background: rgba(255,255,255,0.15); border: none; color: #fff;
+    font-size: 20px; width: 36px; height: 36px; border-radius: 50%;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  .lightbox-close:hover { background: rgba(255,255,255,0.3); }
+
   /* ── Modal ── */
   .modal-overlay {
     display: none;
@@ -860,6 +896,15 @@
   </div>
 </div>
 
+<!-- Image Lightbox -->
+<div class="lightbox-overlay" id="lightboxOverlay" onclick="closeLightbox(event)">
+  <button class="lightbox-close" onclick="closeLightbox(event)">&times;</button>
+  <button class="lightbox-nav lightbox-prev" onclick="lightboxNav(event,-1)">&#8249;</button>
+  <img id="lightboxImg" src="">
+  <button class="lightbox-nav lightbox-next" onclick="lightboxNav(event,1)">&#8250;</button>
+  <div class="lightbox-counter" id="lightboxCounter"></div>
+</div>
+
 <!-- Image Paste Popup -->
 <div class="paste-overlay" id="pasteOverlay">
   <div class="paste-popup" id="pastePopup" tabindex="0">
@@ -1069,10 +1114,10 @@ function render() {
     const memos = [item.pmemo, item.smemo, item.note].filter(Boolean);
 
     return `<div class="product-card" style="animation-delay:${i*0.03}s">
-      <div class="card-image" onclick="pasteImageToCard(${item._idx})" tabindex="0" data-idx="${item._idx}">
+      <div class="card-image" onclick="cardImageClick(${item._idx})" tabindex="0" data-idx="${item._idx}">
         ${(function(){ const imgs = (item.images && item.images.length) ? item.images : (item.img ? [item.img] : []); return imgs.length ? '<img src="'+imgs[0]+'">' + (imgs.length > 1 ? '<span class="img-count">'+imgs.length+'장</span>' : '') : '<span class="icon">'+icon+'</span>'; })()}
         <span class="card-badge ${badgeClass}">${item.stage}</span>
-        <div class="paste-hint">${((item.images && item.images.length) || item.img) ? '클릭하면 이미지 관리' : '클릭하면 이미지 붙여넣기'}</div>
+        <div class="paste-hint">${((item.images && item.images.length) || item.img) ? '🔍 클릭하면 크게 보기' : '클릭하면 이미지 붙여넣기'}</div>
       </div>
       <div class="card-content">
         <div class="card-info">
@@ -1262,6 +1307,41 @@ async function syncFromSheet() {
 // ===== MULTI-IMAGE (max 5) =====
 let formImages = []; // 현재 폼에서 편집 중인 이미지 배열
 
+// ===== LIGHTBOX =====
+let lightboxImages = [];
+let lightboxIdx = 0;
+
+function openLightbox(images, startIdx) {
+  lightboxImages = images.filter(function(src) { return src && !src.startsWith('data:application/pdf'); });
+  if (!lightboxImages.length) return;
+  lightboxIdx = Math.min(startIdx || 0, lightboxImages.length - 1);
+  document.getElementById('lightboxImg').src = lightboxImages[lightboxIdx];
+  updateLightboxCounter();
+  document.getElementById('lightboxOverlay').classList.add('show');
+}
+function closeLightbox(e) {
+  if (e && e.target !== e.currentTarget && !e.target.classList.contains('lightbox-close')) return;
+  document.getElementById('lightboxOverlay').classList.remove('show');
+}
+function lightboxNav(e, dir) {
+  e.stopPropagation();
+  lightboxIdx = (lightboxIdx + dir + lightboxImages.length) % lightboxImages.length;
+  document.getElementById('lightboxImg').src = lightboxImages[lightboxIdx];
+  updateLightboxCounter();
+}
+function updateLightboxCounter() {
+  const el = document.getElementById('lightboxCounter');
+  el.textContent = lightboxImages.length > 1 ? (lightboxIdx + 1) + ' / ' + lightboxImages.length : '';
+  document.querySelector('.lightbox-prev').style.display = lightboxImages.length > 1 ? '' : 'none';
+  document.querySelector('.lightbox-next').style.display = lightboxImages.length > 1 ? '' : 'none';
+}
+document.addEventListener('keydown', function(e) {
+  if (!document.getElementById('lightboxOverlay').classList.contains('show')) return;
+  if (e.key === 'Escape') closeLightbox({target: document.getElementById('lightboxOverlay'), currentTarget: document.getElementById('lightboxOverlay')});
+  if (e.key === 'ArrowLeft') lightboxNav(e, -1);
+  if (e.key === 'ArrowRight') lightboxNav(e, 1);
+});
+
 function getItemImages(item) {
   // 호환: 기존 img(문자열) → images 배열로 변환
   if (item.images && item.images.length) return item.images.slice();
@@ -1302,6 +1382,8 @@ function buildImageGrid() {
       // 빈 슬롯이면 파일 선택, 이미 있으면 포커스(Ctrl+V 대기)
       if (!formImages[idx]) {
         openFilePickerForSlot(idx);
+      } else if (formImages[idx] && !formImages[idx].startsWith('data:application/pdf')) {
+        openLightbox(formImages.filter(Boolean), formImages.filter(Boolean).indexOf(formImages[idx]));
       } else {
         this.focus();
       }
@@ -1358,6 +1440,16 @@ function removeFormImage(e, idx) {
   e.stopPropagation();
   formImages.splice(idx, 1);
   buildImageGrid();
+}
+
+// Card image click — 이미지 있으면 라이트박스, 없으면 붙여넣기 팝업
+function cardImageClick(idx) {
+  const imgs = getItemImages(items[idx]);
+  if (imgs.length) {
+    openLightbox(imgs, 0);
+  } else {
+    pasteImageToCard(idx);
+  }
 }
 
 // Card image paste — 클릭하면 팝업 열기, Ctrl+V로 붙여넣기
