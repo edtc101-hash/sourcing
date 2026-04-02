@@ -1581,10 +1581,8 @@ document.getElementById('pastePopup').addEventListener('paste', async function(e
         items[pasteTargetIdx].img = items[pasteTargetIdx].images[0] || '';
         await saveOneItem(items[pasteTargetIdx]);
       }
-        // 1초 후 팝업 닫기
-        setTimeout(() => { closePastePopup(); render(); observeCards(); }, 800);
-      };
-      reader.readAsDataURL(blob);
+      // 1초 후 팝업 닫기
+      setTimeout(() => { closePastePopup(); render(); observeCards(); }, 800);
       e.preventDefault();
       return;
     }
