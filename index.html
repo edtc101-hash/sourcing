@@ -411,6 +411,10 @@
   .img-grid-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
   .img-slot-file { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
   .img-slot .pdf-icon { font-size: 24px; opacity: 0.7; }
+  .file-ext-badge {
+    display: inline-block; padding: 4px 10px; border-radius: 4px;
+    color: #fff; font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+  }
   .img-slot .pdf-name { font-size: 9px; color: var(--text-muted); text-align: center; padding: 0 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
   .img-count {
     position: absolute; bottom: 6px; right: 6px;
@@ -1412,10 +1416,13 @@ function buildImageGrid() {
       if (isFile) {
         const name = formImageNames[i] || 'file';
         const ext = name.split('.').pop().toLowerCase();
-        const icons = {pdf:'📄',xlsx:'📊',xls:'📊',csv:'📊',doc:'📝',docx:'📝',ppt:'📑',pptx:'📑',zip:'📦',rar:'📦',txt:'📃',hwp:'📝'};
-        const icon = icons[ext] || '📎';
-        html += '<div class="img-slot has-img" tabindex="0" data-slot="'+i+'" style="flex-direction:column;gap:2px">' +
-          '<span class="pdf-icon">'+icon+'</span><span class="pdf-name">'+name+'</span>' +
+        const colors = {pdf:'#e53e3e',xlsx:'#38a169',xls:'#38a169',csv:'#38a169',doc:'#3182ce',docx:'#3182ce',ppt:'#dd6b20',pptx:'#dd6b20',zip:'#805ad5',rar:'#805ad5',txt:'#718096',hwp:'#3182ce'};
+        const labels = {pdf:'PDF',xlsx:'XLS',xls:'XLS',csv:'CSV',doc:'DOC',docx:'DOC',ppt:'PPT',pptx:'PPT',zip:'ZIP',rar:'RAR',txt:'TXT',hwp:'HWP'};
+        const color = colors[ext] || '#718096';
+        const label = labels[ext] || ext.toUpperCase().slice(0,4);
+        html += '<div class="img-slot has-img" tabindex="0" data-slot="'+i+'" style="flex-direction:column;gap:4px">' +
+          '<span class="file-ext-badge" style="background:'+color+'">'+label+'</span>' +
+          '<span class="pdf-name">'+name+'</span>' +
           delBtn + dlBtn + '</div>';
       } else {
         html += '<div class="img-slot has-img" tabindex="0" data-slot="'+i+'">' +
