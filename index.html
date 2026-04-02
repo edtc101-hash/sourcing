@@ -529,6 +529,39 @@
     border-radius: var(--radius);
   }
 
+  /* Card files dropdown */
+  .card-files { position: relative; margin: 0 16px 4px; }
+  .card-files-toggle {
+    width: 100%; padding: 7px 12px; border: 1px solid var(--border);
+    border-radius: var(--radius); background: var(--surface-alt);
+    font-size: 11px; font-weight: 600; color: var(--text-secondary);
+    cursor: pointer; text-align: left; font-family: inherit;
+    transition: background 0.2s;
+  }
+  .card-files-toggle:hover { background: var(--border-light); }
+  .card-files-dropdown {
+    display: none; position: absolute; bottom: 100%; left: 0; right: 0;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    z-index: 50; max-height: 200px; overflow-y: auto;
+    margin-bottom: 4px;
+  }
+  .card-files-dropdown.open { display: block; }
+  .file-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; text-decoration: none; color: var(--text-primary);
+    font-size: 12px; transition: background 0.15s; border-bottom: 1px solid var(--border-light);
+  }
+  .file-item:last-child { border-bottom: none; }
+  .file-item:hover { background: var(--surface-alt); }
+  .file-item-badge {
+    display: inline-block; padding: 2px 6px; border-radius: 3px;
+    color: #fff; font-size: 9px; font-weight: 700; flex-shrink: 0;
+  }
+  .file-item-name {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
   .card-actions {
     display: flex;
     gap: 12px;
@@ -829,7 +862,10 @@
 <!-- Edit Modal -->
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
-    <h2 id="modalTitle">Add Product</h2>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <h2 id="modalTitle" style="margin:0">Add Product</h2>
+      <a href="https://docs.google.com/spreadsheets/d/111dMtb3o1QX9VUmEeztuzbdb3IgLJsnwhWiCKyNocjI/edit?gid=1874387635#gid=1874387635" target="_blank" style="font-size:12px;font-weight:600;color:var(--accent);text-decoration:none;white-space:nowrap">소싱 엑셀표 →</a>
+    </div>
     <input type="hidden" id="editIdx" value="-1">
 
     <div class="form-section">
@@ -1207,6 +1243,7 @@ function render() {
           </div>
         </div>
       </div>
+      ${buildCardFiles(item)}
       <div class="card-actions">
         <button class="action-link" onclick="toggleDetail(${item._idx})">해결과제</button>
         <button class="action-link" onclick="openModal(${item._idx})">Edit</button>
@@ -1218,6 +1255,39 @@ function render() {
   updateKPI();
   requestAnimationFrame(function() { if (typeof observeCards === 'function') observeCards(); });
 }
+
+function buildCardFiles(item) {
+  var files = (item.images && item.images.length) ? item.images : (item.img ? [item.img] : []);
+  var names = item.imageNames || [];
+  if (!files.length) return '';
+  var fileItems = files.map(function(f, fi) {
+    var nm = names[fi] || '';
+    var isImg = f.startsWith('data:image/') || /\.(jpg|jpeg|png|gif|webp|svg|bmp)(\?|$)/i.test(f);
+    var ext = nm ? nm.split('.').pop().toUpperCase().slice(0,4) : (isImg ? 'IMG' : 'FILE');
+    var colorMap = {PDF:'#e53e3e',XLSX:'#38a169',XLS:'#38a169',CSV:'#38a169',DOC:'#3182ce',DOCX:'#3182ce',PPT:'#dd6b20',PPTX:'#dd6b20',ZIP:'#805ad5',RAR:'#805ad5',HWP:'#3182ce',IMG:'#718096',FILE:'#718096'};
+    var color = colorMap[ext] || '#718096';
+    var label = nm || (isImg ? '\uC774\uBBF8\uC9C0 '+(fi+1) : '\uD30C\uC77C '+(fi+1));
+    return '<a class="file-item" href="'+f+'" target="_blank" onclick="event.stopPropagation()">' +
+      '<span class="file-item-badge" style="background:'+color+'">'+ext+'</span>' +
+      '<span class="file-item-name">'+label+'</span></a>';
+  }).join('');
+  return '<div class="card-files">' +
+    '<button class="card-files-toggle" onclick="toggleFiles('+item._idx+')">첨부파일 ('+files.length+')</button>' +
+    '<div class="card-files-dropdown" id="files-'+item._idx+'">'+fileItems+'</div></div>';
+}
+
+function toggleFiles(idx) {
+  const el = document.getElementById('files-' + idx);
+  // 다른 열린 드롭다운 닫기
+  document.querySelectorAll('.card-files-dropdown.open').forEach(function(d) { if (d !== el) d.classList.remove('open'); });
+  el.classList.toggle('open');
+}
+// 외부 클릭 시 드롭다운 닫기
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.card-files')) {
+    document.querySelectorAll('.card-files-dropdown.open').forEach(function(d) { d.classList.remove('open'); });
+  }
+});
 
 function toggleDetail(idx) {
   document.getElementById('detail-' + idx).classList.toggle('open');
