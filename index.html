@@ -978,7 +978,8 @@ async function loadData() {
     const { data, error } = await sb.from('products').select('*').order('id');
     if (!error && data && data.length) {
       items = data.map(function(row) {
-        const d = row.data || {};
+        let d = row.data || {};
+        if (typeof d === 'string') try { d = JSON.parse(d); } catch(e) { d = {}; }
         d._dbId = row.id;
         return d;
       });
