@@ -978,17 +978,31 @@ function openDB() {
   });
 }
 async function loadData() {
+  let idbData = null, lsData = null;
+
   // 1. IndexedDB에서 로드
   try {
     const db = await openDB();
     const tx = db.transaction(DB_STORE, 'readonly');
     const store = tx.objectStore(DB_STORE);
     const req = store.get('items');
-    const saved = await new Promise(function(r) { req.onsuccess = function() { r(req.result); }; req.onerror = function() { r(null); }; });
-    if (saved && saved.length) { items = saved; return; }
+    idbData = await new Promise(function(r) { req.onsuccess = function() { r(req.result); }; req.onerror = function() { r(null); }; });
   } catch(e) {}
 
-  // 2. data.json 파일에서 로드 (배포 시 이미지 포함 데이터)
+  // 2. localStorage 폴백
+  try {
+    const ls = localStorage.getItem(STORAGE_KEY);
+    if (ls) lsData = JSON.parse(ls);
+  } catch(e) {}
+
+  // 사용자가 저장한 데이터가 있으면 그것을 우선 사용
+  const hasLocalSave = localStorage.getItem(STORAGE_KEY + '_ts');
+  if (hasLocalSave) {
+    if (idbData && idbData.length) { items = idbData; return; }
+    if (lsData && lsData.length) { items = lsData; return; }
+  }
+
+  // 3. 로컬 저장 없으면 data.json에서 초기 로드
   try {
     const res = await fetch('./data.json?t=' + Date.now());
     if (res.ok) {
@@ -997,21 +1011,25 @@ async function loadData() {
     }
   } catch(e) {}
 
-  // 3. localStorage 폴백
-  const ls = localStorage.getItem(STORAGE_KEY);
-  items = ls ? JSON.parse(ls) : JSON.parse(JSON.stringify(DEFAULT_DATA));
+  // 4. 최종 폴백
+  if (idbData && idbData.length) { items = idbData; return; }
+  if (lsData && lsData.length) { items = lsData; return; }
+  items = JSON.parse(JSON.stringify(DEFAULT_DATA));
   await saveData();
 }
 async function saveData() {
+  // IndexedDB + localStorage 동시 저장 (안정성 확보)
   try {
     const db = await openDB();
     const tx = db.transaction(DB_STORE, 'readwrite');
     tx.objectStore(DB_STORE).put(items, 'items');
-    await new Promise(function(r) { tx.oncomplete = r; tx.onerror = r; });
+    await new Promise(function(resolve, reject) { tx.oncomplete = resolve; tx.onerror = reject; });
   } catch(e) {
-    // Fallback to localStorage (may fail with large images)
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); } catch(e2) {}
+    console.warn('IndexedDB 저장 실패:', e);
   }
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); } catch(e2) {}
+  // 마지막 저장 시간 기록
+  try { localStorage.setItem(STORAGE_KEY + '_ts', Date.now().toString()); } catch(e) {}
 }
 
 // ===== Image compression (resize to max 400px) =====
@@ -1224,6 +1242,7 @@ async function saveItem() {
     stage: document.getElementById('f_stage').value, sample: document.getElementById('f_sample').value,
     smemo: document.getElementById('f_smemo').value, note: document.getElementById('f_note').value
   };
+  obj.updatedAt = new Date().toISOString();
   if (idx >= 0) items[idx] = obj; else items.push(obj);
   await saveData(); closeModal(); buildSidebar(); render();
 }
