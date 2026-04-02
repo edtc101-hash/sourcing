@@ -1261,12 +1261,12 @@ function buildCardFiles(item) {
   var names = item.imageNames || [];
   if (!files.length) return '';
   var fileItems = files.map(function(f, fi) {
-    var nm = names[fi] || '';
-    var isImg = f.startsWith('data:image/') || /\.(jpg|jpeg|png|gif|webp|svg|bmp)(\?|$)/i.test(f);
-    var ext = nm ? nm.split('.').pop().toUpperCase().slice(0,4) : (isImg ? 'IMG' : 'FILE');
+    var nm = getFileName(f, names[fi]);
+    var isImg = isImageSrc(f);
+    var ext = getFileExt(nm).toUpperCase().slice(0,4) || (isImg ? 'IMG' : 'FILE');
     var colorMap = {PDF:'#e53e3e',XLSX:'#38a169',XLS:'#38a169',CSV:'#38a169',DOC:'#3182ce',DOCX:'#3182ce',PPT:'#dd6b20',PPTX:'#dd6b20',ZIP:'#805ad5',RAR:'#805ad5',HWP:'#3182ce',IMG:'#718096',FILE:'#718096'};
     var color = colorMap[ext] || '#718096';
-    var label = nm || (isImg ? '\uC774\uBBF8\uC9C0 '+(fi+1) : '\uD30C\uC77C '+(fi+1));
+    var label = nm;
     return '<a class="file-item" href="'+f+'" target="_blank" onclick="event.stopPropagation()">' +
       '<span class="file-item-badge" style="background:'+color+'">'+ext+'</span>' +
       '<span class="file-item-name">'+label+'</span></a>';
@@ -1432,7 +1432,31 @@ async function syncFromSheet() {
   alert('새로고침할 데이터가 없습니다.');
 }
 
-// ===== MULTI-IMAGE (max 5) =====
+// ===== 파일명 추출 유틸 =====
+function getFileName(src, savedName) {
+  if (savedName) return savedName;
+  if (!src) return 'file';
+  try {
+    if (src.startsWith('http')) {
+      var path = new URL(src).pathname;
+      var name = path.split('/').pop();
+      if (name) return decodeURIComponent(name);
+    }
+  } catch(e) {}
+  return 'file';
+}
+function getFileExt(name) {
+  if (!name || name.indexOf('.') === -1) return '';
+  return name.split('.').pop().toLowerCase();
+}
+function isImageSrc(src) {
+  if (!src) return false;
+  if (src.startsWith('data:image/')) return true;
+  if (/\.(jpg|jpeg|png|gif|webp|svg|bmp)(\?|$)/i.test(src)) return true;
+  return false;
+}
+
+// ===== MULTI-IMAGE (max 10) =====
 let formImages = []; // 현재 폼에서 편집 중인 이미지 배열
 
 // ===== LIGHTBOX =====
@@ -1488,13 +1512,12 @@ function buildImageGrid() {
   for (let i = 0; i < 10; i++) {
     const src = formImages[i] || '';
     if (src) {
-      const isImage = src.startsWith('data:image/') || /\.(jpg|jpeg|png|gif|webp|svg|bmp)(\?|$)/i.test(src);
-      const isFile = !isImage;
+      const isImg = isImageSrc(src);
       const dlBtn = '<button type="button" class="img-slot-dl" onclick="downloadFormFile(event,'+i+')" title="다운로드">⬇</button>';
       const delBtn = '<button type="button" class="img-slot-del" onclick="removeFormImage(event,'+i+')">&times;</button>';
-      if (isFile) {
-        const name = formImageNames[i] || 'file';
-        const ext = name.split('.').pop().toLowerCase();
+      if (!isImg) {
+        const name = getFileName(src, formImageNames[i]);
+        const ext = getFileExt(name);
         const colors = {pdf:'#e53e3e',xlsx:'#38a169',xls:'#38a169',csv:'#38a169',doc:'#3182ce',docx:'#3182ce',ppt:'#dd6b20',pptx:'#dd6b20',zip:'#805ad5',rar:'#805ad5',txt:'#718096',hwp:'#3182ce'};
         const labels = {pdf:'PDF',xlsx:'XLS',xls:'XLS',csv:'CSV',doc:'DOC',docx:'DOC',ppt:'PPT',pptx:'PPT',zip:'ZIP',rar:'RAR',txt:'TXT',hwp:'HWP'};
         const color = colors[ext] || '#718096';
