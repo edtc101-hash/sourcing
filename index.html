@@ -366,28 +366,48 @@
   }
   .card-image:hover .paste-hint { opacity: 1; }
 
-  /* Image drop zone in form */
-  .img-drop {
+  /* Multi-image grid in form */
+  .img-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+  }
+  .img-slot {
     border: 2px dashed var(--border);
     border-radius: var(--radius);
-    padding: 20px;
-    text-align: center;
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
     outline: none;
     transition: border-color 0.2s;
     position: relative;
-    min-height: 80px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
+    overflow: hidden;
+    background: var(--surface-alt);
   }
-  .img-drop:focus, .img-drop:hover { border-color: var(--accent); }
-  .img-drop-text { font-size: 12px; color: var(--text-muted); }
-  .img-drop-clear {
-    font-size: 11px; color: var(--red); background: none; border: none;
-    cursor: pointer; font-family: inherit; text-decoration: underline;
+  .img-slot:focus, .img-slot:hover { border-color: var(--accent); }
+  .img-slot.has-img { border-style: solid; }
+  .img-slot img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
+  .img-slot .img-slot-add { font-size: 20px; color: var(--text-muted); opacity: 0.5; }
+  .img-slot .img-slot-del {
+    position: absolute; top: 2px; right: 2px;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: rgba(0,0,0,0.6); color: #fff; border: none;
+    font-size: 11px; cursor: pointer; display: flex;
+    align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.2s;
+  }
+  .img-slot:hover .img-slot-del { opacity: 1; }
+  .img-grid-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+  .img-slot-file { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .img-slot .pdf-icon { font-size: 24px; opacity: 0.7; }
+  .img-slot .pdf-name { font-size: 9px; color: var(--text-muted); text-align: center; padding: 0 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+  .img-count {
+    position: absolute; bottom: 6px; right: 6px;
+    background: rgba(0,0,0,0.65); color: #fff;
+    font-size: 10px; font-weight: 600; padding: 2px 6px;
+    border-radius: 4px;
   }
   .card-badge {
     position: absolute;
@@ -788,13 +808,9 @@
       </div>
       <div class="form-row full">
         <div class="form-group">
-          <label>이미지 (클릭 후 Ctrl+V로 붙여넣기)</label>
-          <div class="img-drop" id="f_img_drop" tabindex="0">
-            <span class="img-drop-text">클릭 후 이미지 붙여넣기 (Ctrl+V)</span>
-            <img id="f_img_preview" style="display:none; max-width:100%; max-height:160px; border-radius:6px;">
-            <button type="button" class="img-drop-clear" id="f_img_clear" style="display:none" onclick="clearFormImage(event)">삭제</button>
-          </div>
-          <input type="hidden" id="f_img">
+          <label>파일 첨부 (이미지/PDF, 최대 5개)</label>
+          <div class="img-grid" id="f_img_grid"></div>
+          <div class="img-grid-hint">+ 클릭으로 파일 선택 또는 슬롯 클릭 후 Ctrl+V로 붙여넣기</div>
         </div>
       </div>
     </div>
@@ -1053,9 +1069,9 @@ function render() {
 
     return `<div class="product-card" style="animation-delay:${i*0.03}s">
       <div class="card-image" onclick="pasteImageToCard(${item._idx})" tabindex="0" data-idx="${item._idx}">
-        ${item.img ? `<img src="${item.img}">` : `<span class="icon">${icon}</span>`}
+        ${(function(){ const imgs = (item.images && item.images.length) ? item.images : (item.img ? [item.img] : []); return imgs.length ? '<img src="'+imgs[0]+'">' + (imgs.length > 1 ? '<span class="img-count">'+imgs.length+'장</span>' : '') : '<span class="icon">'+icon+'</span>'; })()}
         <span class="card-badge ${badgeClass}">${item.stage}</span>
-        <div class="paste-hint">${item.img ? '클릭하면 이미지 교체' : '클릭하면 이미지 붙여넣기'}</div>
+        <div class="paste-hint">${((item.images && item.images.length) || item.img) ? '클릭하면 이미지 관리' : '클릭하면 이미지 붙여넣기'}</div>
       </div>
       <div class="card-content">
         <div class="card-info">
@@ -1112,8 +1128,9 @@ function openModal(idx) {
     document.getElementById('f_otherSpec').value = item.otherSpec || '';
     document.getElementById('f_install').value = item.install || '';
     document.getElementById('f_color').value = item.color || '';
-    document.getElementById('f_img').value = item.img || '';
-    updateFormImagePreview(item.img || '');
+    formImages = getItemImages(item);
+    formImageNames = (item.imageNames || []).slice();
+    buildImageGrid();
     document.getElementById('f_supplier').value = item.supplier || '';
     document.getElementById('f_wechat').value = item.wechat || '';
     document.getElementById('f_confirmed').value = item.confirmed || 'N';
@@ -1131,7 +1148,9 @@ function openModal(idx) {
     document.getElementById('f_confirmed').value = 'N';
     document.getElementById('f_stage').value = '탐색중';
     document.getElementById('f_sample').value = '미요청';
-    updateFormImagePreview('');
+    formImages = [];
+    formImageNames = [];
+    buildImageGrid();
   }
 }
 function closeModal() { document.getElementById('modalOverlay').classList.remove('show'); }
@@ -1144,7 +1163,7 @@ async function saveItem() {
     depth: document.getElementById('f_depth').value, side: document.getElementById('f_side').value,
     back: document.getElementById('f_back').value, otherSpec: document.getElementById('f_otherSpec').value,
     install: document.getElementById('f_install').value, color: document.getElementById('f_color').value,
-    img: document.getElementById('f_img').value, pmemo: document.getElementById('f_pmemo').value,
+    images: formImages.filter(Boolean), imageNames: formImageNames.filter(Boolean), img: formImages[0] || '', pmemo: document.getElementById('f_pmemo').value,
     supplier: document.getElementById('f_supplier').value, wechat: document.getElementById('f_wechat').value,
     confirmed: document.getElementById('f_confirmed').value, moq: document.getElementById('f_moq').value,
     price: document.getElementById('f_price').value, leadtime: document.getElementById('f_leadtime').value,
@@ -1178,7 +1197,15 @@ async function saveForDeploy() {
   for (const item of items) {
     const copy = {...item};
     delete copy._idx;
-    if (copy.img && copy.img.startsWith('data:')) {
+    if (copy.images && copy.images.length) {
+      const compressed = [];
+      for (const im of copy.images) {
+        if (im.startsWith('data:image/')) compressed.push(await compressImage(im, 300));
+        else compressed.push(im);
+      }
+      copy.images = compressed;
+      copy.img = compressed[0] || '';
+    } else if (copy.img && copy.img.startsWith('data:image/')) {
       copy.img = await compressImage(copy.img, 300);
     }
     compressed.push(copy);
@@ -1231,25 +1258,84 @@ async function syncFromSheet() {
   }
 }
 
-// ===== IMAGE PASTE =====
-function updateFormImagePreview(src) {
-  const preview = document.getElementById('f_img_preview');
-  const text = document.querySelector('.img-drop-text');
-  const clear = document.getElementById('f_img_clear');
-  if (src) {
-    preview.src = src; preview.style.display = 'block';
-    text.style.display = 'none'; clear.style.display = 'inline';
-  } else {
-    preview.src = ''; preview.style.display = 'none';
-    text.style.display = ''; clear.style.display = 'none';
+// ===== MULTI-IMAGE (max 5) =====
+let formImages = []; // 현재 폼에서 편집 중인 이미지 배열
+
+function getItemImages(item) {
+  // 호환: 기존 img(문자열) → images 배열로 변환
+  if (item.images && item.images.length) return item.images.slice();
+  if (item.img) return [item.img];
+  return [];
+}
+
+function buildImageGrid() {
+  const grid = document.getElementById('f_img_grid');
+  let html = '';
+  for (let i = 0; i < 5; i++) {
+    const src = formImages[i] || '';
+    if (src) {
+      const isPdf = src.startsWith('data:application/pdf');
+      if (isPdf) {
+        const name = formImageNames[i] || 'PDF';
+        html += '<div class="img-slot has-img" tabindex="0" data-slot="'+i+'" style="flex-direction:column;gap:2px">' +
+          '<span class="pdf-icon">📄</span><span class="pdf-name">'+name+'</span>' +
+          '<button type="button" class="img-slot-del" onclick="removeFormImage(event,'+i+')">&times;</button>' +
+          '</div>';
+      } else {
+        html += '<div class="img-slot has-img" tabindex="0" data-slot="'+i+'">' +
+          '<img src="'+src+'">' +
+          '<button type="button" class="img-slot-del" onclick="removeFormImage(event,'+i+')">&times;</button>' +
+          '</div>';
+      }
+    } else {
+      html += '<div class="img-slot" tabindex="0" data-slot="'+i+'">' +
+        '<span class="img-slot-add">+</span></div>';
+    }
   }
+  grid.innerHTML = html;
+  grid.querySelectorAll('.img-slot').forEach(function(slot) {
+    slot.addEventListener('paste', handleSlotPaste);
+    slot.addEventListener('click', function(e) {
+      if (e.target.classList.contains('img-slot-del')) return;
+      const idx = parseInt(this.getAttribute('data-slot'));
+      // 빈 슬롯이면 파일 선택, 이미 있으면 포커스(Ctrl+V 대기)
+      if (!formImages[idx]) {
+        openFilePickerForSlot(idx);
+      } else {
+        this.focus();
+      }
+    });
+  });
 }
-function clearFormImage(e) {
-  e.stopPropagation();
-  document.getElementById('f_img').value = '';
-  updateFormImagePreview('');
+
+let formImageNames = []; // PDF 파일명 추적
+
+function openFilePickerForSlot(slotIdx) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*,application/pdf';
+  input.onchange = function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async function(ev) {
+      if (file.type.startsWith('image/')) {
+        formImages[slotIdx] = await compressImage(ev.target.result, 400);
+        formImageNames[slotIdx] = file.name;
+      } else {
+        // PDF는 base64로 저장
+        formImages[slotIdx] = ev.target.result;
+        formImageNames[slotIdx] = file.name;
+      }
+      buildImageGrid();
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
 }
-document.getElementById('f_img_drop').addEventListener('paste', function(e) {
+
+function handleSlotPaste(e) {
+  const slotIdx = parseInt(this.getAttribute('data-slot'));
   const ci = e.clipboardData.items;
   for (let i = 0; i < ci.length; i++) {
     if (ci[i].type.startsWith('image/')) {
@@ -1257,15 +1343,21 @@ document.getElementById('f_img_drop').addEventListener('paste', function(e) {
       const reader = new FileReader();
       reader.onload = async function(ev) {
         const compressed = await compressImage(ev.target.result, 400);
-        document.getElementById('f_img').value = compressed;
-        updateFormImagePreview(compressed);
+        formImages[slotIdx] = compressed;
+        buildImageGrid();
       };
       reader.readAsDataURL(blob);
       e.preventDefault();
       return;
     }
   }
-});
+}
+
+function removeFormImage(e, idx) {
+  e.stopPropagation();
+  formImages.splice(idx, 1);
+  buildImageGrid();
+}
 
 // Card image paste — 클릭하면 팝업 열기, Ctrl+V로 붙여넣기
 let pasteTargetIdx = -1;
@@ -1291,9 +1383,15 @@ document.getElementById('pastePopup').addEventListener('paste', async function(e
         // 프리뷰 표시
         document.getElementById('pastePreview').innerHTML = '<img src="'+compressed+'">';
         document.getElementById('pasteStatus').textContent = '이미지 적용 완료!';
-        // 저장
+        // 저장 (images 배열에 추가)
         if (pasteTargetIdx >= 0) {
-          items[pasteTargetIdx].img = compressed;
+          if (!items[pasteTargetIdx].images) items[pasteTargetIdx].images = getItemImages(items[pasteTargetIdx]);
+          if (items[pasteTargetIdx].images.length < 5) {
+            items[pasteTargetIdx].images.push(compressed);
+          } else {
+            items[pasteTargetIdx].images[0] = compressed; // 꽉 차면 첫 번째 교체
+          }
+          items[pasteTargetIdx].img = items[pasteTargetIdx].images[0] || '';
           await saveData();
         }
         // 1초 후 팝업 닫기
