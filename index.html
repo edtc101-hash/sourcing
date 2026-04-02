@@ -399,7 +399,15 @@
     align-items: center; justify-content: center;
     opacity: 0; transition: opacity 0.2s;
   }
-  .img-slot:hover .img-slot-del { opacity: 1; }
+  .img-slot:hover .img-slot-del, .img-slot:hover .img-slot-dl { opacity: 1; }
+  .img-slot .img-slot-dl {
+    position: absolute; bottom: 2px; right: 2px;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: rgba(0,0,0,0.6); color: #fff; border: none;
+    font-size: 10px; cursor: pointer; display: flex;
+    align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.2s;
+  }
   .img-grid-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
   .img-slot-file { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
   .img-slot .pdf-icon { font-size: 24px; opacity: 0.7; }
@@ -1356,17 +1364,16 @@ function buildImageGrid() {
     const src = formImages[i] || '';
     if (src) {
       const isPdf = src.startsWith('data:application/pdf');
+      const dlBtn = '<button type="button" class="img-slot-dl" onclick="downloadFormFile(event,'+i+')" title="다운로드">⬇</button>';
+      const delBtn = '<button type="button" class="img-slot-del" onclick="removeFormImage(event,'+i+')">&times;</button>';
       if (isPdf) {
         const name = formImageNames[i] || 'PDF';
         html += '<div class="img-slot has-img" tabindex="0" data-slot="'+i+'" style="flex-direction:column;gap:2px">' +
           '<span class="pdf-icon">📄</span><span class="pdf-name">'+name+'</span>' +
-          '<button type="button" class="img-slot-del" onclick="removeFormImage(event,'+i+')">&times;</button>' +
-          '</div>';
+          delBtn + dlBtn + '</div>';
       } else {
         html += '<div class="img-slot has-img" tabindex="0" data-slot="'+i+'">' +
-          '<img src="'+src+'">' +
-          '<button type="button" class="img-slot-del" onclick="removeFormImage(event,'+i+')">&times;</button>' +
-          '</div>';
+          '<img src="'+src+'">' + delBtn + dlBtn + '</div>';
       }
     } else {
       html += '<div class="img-slot" tabindex="0" data-slot="'+i+'">' +
@@ -1439,7 +1446,22 @@ function handleSlotPaste(e) {
 function removeFormImage(e, idx) {
   e.stopPropagation();
   formImages.splice(idx, 1);
+  formImageNames.splice(idx, 1);
   buildImageGrid();
+}
+
+function downloadFormFile(e, idx) {
+  e.stopPropagation();
+  const src = formImages[idx];
+  if (!src) return;
+  const isPdf = src.startsWith('data:application/pdf');
+  const name = formImageNames[idx] || (isPdf ? 'file.pdf' : 'image.jpg');
+  if (confirm('"' + name + '" 을(를) 다운로드 하시겠습니까?')) {
+    const a = document.createElement('a');
+    a.href = src;
+    a.download = name;
+    a.click();
+  }
 }
 
 // Card image click — 이미지 있으면 라이트박스, 없으면 붙여넣기 팝업
