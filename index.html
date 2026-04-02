@@ -853,7 +853,7 @@
       </div>
       <div class="form-row full">
         <div class="form-group">
-          <label>파일 첨부 (이미지/PDF, 최대 10개)</label>
+          <label>파일 첨부 (모든 파일, 최대 10개)</label>
           <div class="img-grid" id="f_img_grid"></div>
           <div class="img-grid-hint">+ 클릭으로 파일 선택 또는 슬롯 클릭 후 Ctrl+V로 붙여넣기</div>
         </div>
@@ -1357,7 +1357,12 @@ let lightboxImages = [];
 let lightboxIdx = 0;
 
 function openLightbox(images, startIdx) {
-  lightboxImages = images.filter(function(src) { return src && !src.startsWith('data:application/pdf') && !src.toLowerCase().endsWith('.pdf'); });
+  lightboxImages = images.filter(function(src) {
+    if (!src) return false;
+    if (src.startsWith('data:image/')) return true;
+    if (/\.(jpg|jpeg|png|gif|webp|svg|bmp)(\?|$)/i.test(src)) return true;
+    return false;
+  });
   if (!lightboxImages.length) return;
   lightboxIdx = Math.min(startIdx || 0, lightboxImages.length - 1);
   document.getElementById('lightboxImg').src = lightboxImages[lightboxIdx];
@@ -1400,13 +1405,17 @@ function buildImageGrid() {
   for (let i = 0; i < 10; i++) {
     const src = formImages[i] || '';
     if (src) {
-      const isPdf = src.startsWith('data:application/pdf') || src.toLowerCase().endsWith('.pdf');
+      const isImage = src.startsWith('data:image/') || /\.(jpg|jpeg|png|gif|webp|svg|bmp)(\?|$)/i.test(src);
+      const isFile = !isImage;
       const dlBtn = '<button type="button" class="img-slot-dl" onclick="downloadFormFile(event,'+i+')" title="다운로드">⬇</button>';
       const delBtn = '<button type="button" class="img-slot-del" onclick="removeFormImage(event,'+i+')">&times;</button>';
-      if (isPdf) {
-        const name = formImageNames[i] || 'PDF';
+      if (isFile) {
+        const name = formImageNames[i] || 'file';
+        const ext = name.split('.').pop().toLowerCase();
+        const icons = {pdf:'📄',xlsx:'📊',xls:'📊',csv:'📊',doc:'📝',docx:'📝',ppt:'📑',pptx:'📑',zip:'📦',rar:'📦',txt:'📃',hwp:'📝'};
+        const icon = icons[ext] || '📎';
         html += '<div class="img-slot has-img" tabindex="0" data-slot="'+i+'" style="flex-direction:column;gap:2px">' +
-          '<span class="pdf-icon">📄</span><span class="pdf-name">'+name+'</span>' +
+          '<span class="pdf-icon">'+icon+'</span><span class="pdf-name">'+name+'</span>' +
           delBtn + dlBtn + '</div>';
       } else {
         html += '<div class="img-slot has-img" tabindex="0" data-slot="'+i+'">' +
@@ -1426,8 +1435,14 @@ function buildImageGrid() {
       // 빈 슬롯이면 파일 선택, 이미 있으면 포커스(Ctrl+V 대기)
       if (!formImages[idx]) {
         openFilePickerForSlot(idx);
-      } else if (formImages[idx] && !formImages[idx].startsWith('data:application/pdf')) {
-        openLightbox(formImages.filter(Boolean), formImages.filter(Boolean).indexOf(formImages[idx]));
+      } else if (formImages[idx]) {
+        const s = formImages[idx];
+        const isImg = s.startsWith('data:image/') || /\.(jpg|jpeg|png|gif|webp|svg|bmp)(\?|$)/i.test(s);
+        if (isImg) {
+          openLightbox(formImages.filter(Boolean), formImages.filter(Boolean).indexOf(s));
+        } else {
+          downloadFormFile(e, idx);
+        }
       } else {
         this.focus();
       }
@@ -1452,7 +1467,7 @@ async function uploadFileToStorage(file) {
 function openFilePickerForSlot(slotIdx) {
   const input = document.createElement('input');
   input.type = 'file';
-  input.accept = 'image/*,application/pdf';
+  input.accept = '*/*';
   input.onchange = async function(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -1517,8 +1532,8 @@ function downloadFormFile(e, idx) {
   e.stopPropagation();
   const src = formImages[idx];
   if (!src) return;
-  const isPdf = src.startsWith('data:application/pdf') || (src.includes('.pdf'));
-  const name = formImageNames[idx] || (isPdf ? 'file.pdf' : 'image.jpg');
+  const isImg = src.startsWith('data:image/') || /\.(jpg|jpeg|png|gif|webp|svg|bmp)(\?|$)/i.test(src);
+  const name = formImageNames[idx] || (isImg ? 'image.jpg' : 'file');
   if (confirm('"' + name + '" 을(를) 다운로드 하시겠습니까?')) {
     if (src.startsWith('http')) {
       // URL 파일 → 새 탭에서 열기
